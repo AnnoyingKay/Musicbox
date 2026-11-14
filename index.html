@@ -485,11 +485,18 @@ function openRecord(id, pre) {
     ${fieldHTML('label', 'Label', d.label)}
     ${fieldHTML('catno', 'Catalogue number', d.catno)}
     ${fieldHTML('barcode', 'Barcode', d.barcode)}
+    ${fieldHTML('country', 'Country', d.country)}
+    ${fieldHTML('genres', 'Genres and styles', d.genres === '-' ? '' : d.genres)}
     ${fieldHTML('format', 'Format', d.format)}
     ${fieldHTML('pressing', 'Pressing or colour', d.pressing)}
     ${gradeHTML('mediaCond', 'Record condition', d.mediaCond)}
     ${gradeHTML('sleeveCond', 'Sleeve condition', d.sleeveCond)}
     <label>Notes</label><textarea data-f="notes">${esc(d.notes)}</textarea>
+    <div class="sec">
+      <b>Discogs</b>
+      <div class="row" style="margin-top:10px"><input id="dc-q" placeholder="${dTok() ? 'Search Discogs' : 'Add a Discogs token in Settings to search'}" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="dc-search">Search</button></div>
+      <div id="dc-res"></div>
+    </div>
     <div class="sec">
       <b>Spotify album</b>
       <div id="sp-cur">${spCurrentHTML()}</div>
@@ -512,7 +519,7 @@ async function saveDraft() {
   if (!d.artist || !d.title) { toast('Artist and title are needed'); return; }
   const now = Date.now();
   const data = {
-    artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', barcode: d.barcode || '', format: d.format || '',
+    artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', barcode: d.barcode || '', country: d.country || '', genres: d.genres || '', format: d.format || '',
     pressing: d.pressing || '', mediaCond: d.mediaCond || '', sleeveCond: d.sleeveCond || '', notes: d.notes || '',
     spotifyId: d.spotifyId || '', spotifyName: d.spotifyName || '', spotifyArtist: d.spotifyArtist || '', cover: d.cover || '',
     discogsId: d.discogsId || '', updatedAt: now
@@ -807,6 +814,29 @@ async function importCSV(file) {
   } catch (e) { out.textContent = 'Import failed. Check the file and your connection.'; }
 }
 
+async function fillFromDiscogs() {
+  const todo = S.recs.filter(r => r.discogsId && !r.genres);
+  if (!todo.length || !dTok()) return;
+  S.stop = false; const p = () => $('#fill-prog'), st = $('#fill-stop'); if (st) st.classList.remove('hide');
+  let n = 0, ok = 0, err = '';
+  for (const r of todo) {
+    if (S.stop) break; n++;
+    if (p()) p().textContent = `Filling ${n} of ${todo.length}. Done ${ok}.`;
+    try {
+      const o = await discogsRelease(r.discogsId), u = { updatedAt: Date.now() };
+      u.genres = o.genres || '-';
+      if (o.country) u.country = o.country;
+      for (const k of ['label', 'catno', 'pressing', 'year']) if (!r[k] && o[k]) u[k] = o[k];
+      await fb.F.updateDoc(ref(r.id), u); ok++;
+    } catch (e) {
+      if (e.message === 'HTTP429') { await sleep(30000); n--; continue; }
+      if (e.message === 'HTTP401') { err = 'Discogs rejected the token.'; break; }
+    }
+    await sleep(1100);
+  }
+  if (p()) p().textContent = (err ? err + ' ' : '') + `Filled ${ok} of ${todo.length}.` + (S.stop ? ' Stopped.' : '');
+  if (st) st.classList.add('hide');
+}
 async function matchAll() {
   const todo = S.recs.filter(r => !r.spotifyId);
   if (!todo.length) return;
@@ -1080,7 +1110,7 @@ function visibleRecs() {
     if (S.filter === 'linked' && !r.spotifyId) return false;
     if (S.filter === 'unlinked' && r.spotifyId) return false;
     if (!q) return true;
-    return norm([r.artist, r.title, r.label, r.catno, r.pressing, r.notes].join(' ')).includes(q);
+    return norm([r.artist, r.title, r.label, r.catno, r.pressing, r.notes, r.genres, r.country].join(' ')).includes(q);
   });
   const by = {
     artist: (x, y) => norm(x.artist).localeCompare(norm(y.artist)) || (+x.year || 0) - (+y.year || 0) || norm(x.title).localeCompare(norm(y.title)),
@@ -1149,34 +1179,25 @@ function renderLibraryList() {
 function renderStats() {
   const rs = S.recs;
   if (!rs.length) { $('#main').innerHTML = '<div class="empty">Stats appear once the first record is saved.</div>'; return; }
-  const c = mkCtx(rs);
-  const copies = rs.reduce((s, r) => s + (+r.copies || 1), 0);
-  const tally = (f, n = 6) => { const m = {}; rs.forEach(r => f(r).forEach(k => { if (k) m[k] = (m[k] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n); };
+  const split = v => String(v || '').split(',').map(x => x.trim()).filter(x => x && x !== '-');
+  const tally = (f, n = 8) => { const m = {}; rs.forEach(r => uniq(f(r)).forEach(k => { m[k] = (m[k] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n); };
   const hb = arr => { const t = Math.max(1, ...arr.map(a => a[1])); return arr.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="bar"><i style="width:${v / t * 100}%"></i></div><span style="width:30px;text-align:right">${v}</span></div>`).join('') || '<div class="note">Nothing to show yet.</div>'; };
-  const now = new Date(), months = [];
-  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ k: d.getFullYear() * 12 + d.getMonth(), l: 'JFMAMJJASOND'[d.getMonth()], n: 0 }); }
-  rs.forEach(r => { if (r.discogsId || !r.addedAt) return; const d = new Date(r.addedAt), k = d.getFullYear() * 12 + d.getMonth(), m = months.find(x => x.k === k); if (m) m.n++; });
-  const mx = Math.max(1, ...months.map(m => m.n));
+  const list = arr => arr.map(r => `<button class="res" data-open="${esc(r.id)}">${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}<div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span></div></button>`).join('');
+  const withYear = rs.filter(r => +r.year >= 1900).sort((a, b) => a.year - b.year || norm(a.title).localeCompare(norm(b.title)));
+  const newest = withYear.slice(-5).reverse(), oldest = withYear.slice(0, 5);
+  const recent = rs.filter(r => r.addedAt && !r.discogsId).sort((a, b) => b.addedAt - a.addedAt).slice(0, 5);
   const decades = tally(r => { const y = +r.year; return y >= 1900 ? [Math.floor(y / 10) * 10 + 's'] : []; }, 12).sort((a, b) => a[0].localeCompare(b[0]));
-  const conds = tally(r => [(r.mediaCond || '').replace(/\s*\(.*\)/, '')], 8);
-  const fmts = tally(r => (r.format || '').split(',').slice(0, 1).map(x => x.trim()), 6);
-  const withYear = rs.filter(r => +r.year >= 1900).sort((a, b) => a.year - b.year);
-  const old = withYear[0], neu = withYear[withYear.length - 1];
-  const pct = Math.round(c.linked / c.n * 100);
+  const noGenre = rs.filter(r => !split(r.genres).length).length;
   $('#main').innerHTML = `
-    <div class="box"><div class="stat">
-      <div><b>${fmtN(c.n)}</b><span>records</span></div>
-      <div><b>${fmtN(copies)}</b><span>copies</span></div>
-      <div><b>${fmtN(c.artists)}</b><span>artists</span></div>
-      <div><b>${pct}%</b><span>linked to Spotify</span></div>
-    </div><div class="bar" style="height:10px"><i style="width:${pct}%"></i></div></div>
-    <div class="box"><h3>Saved by month</h3><div class="months">${months.map(m => `<div>${m.n || ''}<i style="height:${m.n / mx * 80}px"></i>${m.l}</div>`).join('')}</div><div class="note">Records saved by hand. Imports are not counted.</div></div>
+    <div class="box"><div class="stat"><div><b>${fmtN(rs.length)}</b><span>albums</span></div></div></div>
+    <div class="box"><h3>Groups with the most albums</h3>${hb(tally(r => [r.artist], 10))}</div>
+    <div class="box"><h3>Genres</h3>${hb(tally(r => split(r.genres), 10))}${noGenre ? `<div class="note">${noGenre} album${noGenre === 1 ? ' has' : 's have'} no genre yet. Settings has a button to fill them from Discogs.</div>` : ''}</div>
+    <div class="box"><h3>Type</h3>${hb(tally(r => split(r.format).filter(x => x.toLowerCase() !== 'vinyl'), 10))}</div>
     <div class="box"><h3>By decade</h3>${hb(decades)}</div>
-    <div class="box"><h3>Top artists</h3>${hb(tally(r => [r.artist]))}</div>
-    <div class="box"><h3>Top labels</h3>${hb(tally(r => [r.label]))}</div>
-    <div class="box"><h3>Formats</h3>${hb(fmts)}</div>
-    <div class="box"><h3>Condition</h3>${hb(conds)}<div class="note">${rs.filter(r => !r.mediaCond).length} not graded.</div></div>
-    ${old ? `<div class="box"><h3>Oldest and newest</h3><div class="note">Oldest: ${esc(old.title)} by ${esc(old.artist)} (${esc(old.year)})<br>Newest: ${esc(neu.title)} by ${esc(neu.artist)} (${esc(neu.year)})</div></div>` : ''}`;
+    <div class="box"><h3>Top labels</h3>${hb(tally(r => [r.label], 8))}</div>
+    <div class="box"><h3>Newest releases</h3>${list(newest) || '<div class="note">No release years yet.</div>'}</div>
+    <div class="box"><h3>Oldest releases</h3>${list(oldest) || '<div class="note">No release years yet.</div>'}</div>
+    ${recent.length ? `<div class="box"><h3>Last added</h3>${list(recent)}</div>` : ''}`;
 }
 
 /* ---------- trophies ---------- */
@@ -1205,6 +1226,14 @@ function renderSettings() {
       <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
       <div class="row wrap">${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}</div>
       <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div></div>
+    <div class="box"><b>Discogs lookup for barcodes</b>
+      <div class="note">Scanning finds far more with a free Discogs token. On discogs.com open Settings, then Developers, then Generate new token, and paste it here. It is stored on this device only.</div>
+      <input id="dtoken" type="password" placeholder="Discogs token" autocomplete="off" value="${esc(dTok())}">
+      <div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="dtoken-save">Save token</button>${dTok() ? '<button class="btn ghost small" data-act="dtoken-clear">Remove</button>' : ''}</div></div>
+    <div class="box"><b>Fill details from Discogs</b>
+      <div class="note">Adds genres, country and any missing label, catalogue number or colour to records that came from your Discogs import. About one record a second, so keep this page open.</div>
+      <div class="row wrap"><button class="btn small" data-act="fill-dc" ${dTok() && S.recs.some(r => r.discogsId && !r.genres) ? '' : 'disabled'}>Fill missing details</button><button class="btn ghost small hide" id="fill-stop" data-act="fill-stop">Stop</button></div>
+      <div id="fill-prog" class="note">${dTok() ? '' : 'Needs a Discogs token above.'}</div></div>
     <div class="box"><b>Match with Spotify</b>
       <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly. Close matches are left for you to check by hand.</div>
       <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
@@ -1220,7 +1249,7 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 5</div>
+      <div class="note">App version 9</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
@@ -1234,7 +1263,7 @@ function setTab(t) {
 }
 
 function exportCSV() {
-  const cols = ['artist', 'title', 'year', 'label', 'catno', 'barcode', 'format', 'pressing', 'mediaCond', 'sleeveCond', 'copies', 'notes', 'spotifyId', 'discogsId'];
+  const cols = ['artist', 'title', 'year', 'label', 'catno', 'barcode', 'country', 'genres', 'format', 'pressing', 'mediaCond', 'sleeveCond', 'copies', 'notes', 'spotifyId', 'discogsId'];
   const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
   const rows = [cols.join(',')].concat(S.recs.map(r => cols.map(k => q(r[k])).join(',')));
   const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
@@ -1316,27 +1345,103 @@ async function startScan() {
   };
   tick();
 }
+const dTok = () => ls('musicbox_discogs_token', '');
+const uniq = a => [...new Set(a.filter(Boolean))];
+async function getJSON(url) { const r = await fetch(url); if (!r.ok) throw new Error('HTTP' + r.status); return r.json(); }
+async function discogsLookup(codes) {
+  const tk = dTok(); if (!tk) return null;
+  let hit = null;
+  for (const c of codes) {
+    const j = await getJSON('https://api.discogs.com/database/search?' + new URLSearchParams({ barcode: c, type: 'release', per_page: '10', token: tk }));
+    const list = j.results || [];
+    hit = list.find(x => (x.format || []).includes('Vinyl')) || list[0];
+    if (hit) break;
+  }
+  if (!hit) return null;
+  return discogsRelease(hit.id);
+}
+async function discogsRelease(id) {
+  const r = await getJSON('https://api.discogs.com/releases/' + id + '?token=' + encodeURIComponent(dTok()));
+  const f = (r.formats || [])[0] || {}, l = (r.labels || [])[0] || {};
+  return {
+    discogsId: String(r.id),
+    artist: uniq((r.artists || []).map(a => cleanArtist(a.name))).join(', '),
+    title: r.title || '',
+    year: String(r.year || (r.released || '').slice(0, 4) || ''),
+    label: l.name ? cleanArtist(l.name) : '',
+    catno: l.catno && l.catno !== 'none' ? l.catno : '',
+    format: uniq([f.name].concat(f.descriptions || [])).join(', '),
+    pressing: f.text || '',
+    country: r.country || '',
+    genres: uniq([].concat(r.genres || [], r.styles || [])).join(', ')
+  };
+}
+let dcResults = [];
+async function discogsSearch() {
+  const box = $('#dc-res'), q = (($('#dc-q') || {}).value || '').trim(); if (!q || !box) return;
+  if (!dTok()) { box.innerHTML = '<div class="note err">Add a Discogs token in Settings first.</div>'; return; }
+  box.innerHTML = '<div class="note">Searching</div>';
+  try {
+    const j = await getJSON('https://api.discogs.com/database/search?' + new URLSearchParams({ q, type: 'release', per_page: '10', token: dTok() }));
+    dcResults = j.results || [];
+    if (!dcResults.length) { box.innerHTML = '<div class="note">Nothing found. Try fewer words.</div>'; return; }
+    box.innerHTML = dcResults.map((x, i) => `<button class="res" data-dpick="${i}"><div class="meta"><b>${esc(x.title)}</b><span>${esc([x.year, x.country].filter(Boolean).join(' · '))}</span><span>${esc([(x.label || [])[0], x.catno, (x.format || []).join(', ')].filter(Boolean).join(' · '))}</span></div></button>`).join('');
+  } catch (e) { box.innerHTML = `<div class="note err">${e.message === 'HTTP401' ? 'Discogs rejected the token. Check it in Settings.' : 'Discogs search failed. Try again.'}</div>`; }
+}
+async function discogsPick(i) {
+  const x = dcResults[i]; if (!x || !S.draft) return;
+  const box = $('#dc-res'); box.innerHTML = '<div class="note">Getting the details</div>';
+  try {
+    const o = await discogsRelease(x.id); collectDraft();
+    for (const k in o) if (o[k]) { S.draft[k] = o[k]; const el = document.querySelector('#panel [data-f="' + k + '"]'); if (el) el.value = o[k]; }
+    box.innerHTML = '<div class="note">Filled in from Discogs. Check the details, then save.</div>';
+    const q = $('#sp-q'); if (q) q.value = (S.draft.artist + ' ' + S.draft.title).trim();
+  } catch (e) { box.innerHTML = '<div class="note err">Could not get the details. Try again.</div>'; }
+}
+async function musicbrainzLookup(codes) {
+  const q = codes.map(c => 'barcode:' + c).join(' OR ');
+  const j = await getJSON('https://musicbrainz.org/ws/2/release/?query=' + encodeURIComponent(q) + '&fmt=json&limit=5');
+  const rel = (j.releases || [])[0]; if (!rel) return null;
+  const o = { title: rel.title || '', artist: (rel['artist-credit'] || []).map(a => (a.name || '') + (a.joinphrase || '')).join('').trim(), year: (rel.date || '').slice(0, 4), country: rel.country || '' };
+  const li = (rel['label-info'] || [])[0]; if (li) { o.label = (li.label && li.label.name) || ''; o.catno = li['catalog-number'] || ''; }
+  const m = (rel.media || [])[0]; if (m && m.format) o.format = m.format;
+  return o;
+}
 async function lookupBarcode(raw) {
   const code = String(raw).replace(/\D/g, '');
   if (code.length < 8) { toast('That does not look like a barcode'); return; }
-  const dup = S.recs.find(r => r.barcode === code);
+  const codes = uniq([code, code.length === 12 ? '0' + code : '', code.length === 13 && code[0] === '0' ? code.slice(1) : '']);
+  const dup = S.recs.find(r => codes.includes(r.barcode));
   if (dup) { closeSheet(); toast('Already in the collection'); openRecord(dup.id); return; }
-  scanMsg('Looking up ' + code); stopScan();
-  const pre = { barcode: code, format: 'Vinyl' }; let found = false;
-  try {
-    const res = await fetch('https://musicbrainz.org/ws/2/release/?query=barcode:' + code + '&fmt=json&limit=5');
-    const rel = ((await res.json()).releases || [])[0];
-    if (rel) {
-      found = true; pre.title = rel.title || '';
-      pre.artist = (rel['artist-credit'] || []).map(a => (a.name || '') + (a.joinphrase || '')).join('').trim();
-      pre.year = (rel.date || '').slice(0, 4);
-      const li = (rel['label-info'] || [])[0]; if (li) { pre.label = (li.label && li.label.name) || ''; pre.catno = li['catalog-number'] || ''; }
-      const m = (rel.media || [])[0]; if (m && m.format) pre.format = m.format;
-    }
-  } catch (e) {}
+  stopScan();
+  const pre = { barcode: code, format: 'Vinyl' }, tried = [], got = [];
+  const merge = (o, src) => { if (!o) return; got.push(src); for (const k in o) if (o[k] && (!pre[k] || (k === 'format' && pre[k] === 'Vinyl'))) pre[k] = o[k]; };
+  if (dTok()) {
+    scanMsg('Looking in Discogs');
+    try { merge(await discogsLookup(codes), 'Discogs'); } catch (e) { tried.push(e.message === 'HTTP401' ? 'Discogs rejected the token' : 'Discogs failed'); }
+  } else tried.push('no Discogs token yet');
+  scanMsg('Looking in MusicBrainz');
+  try { merge(await musicbrainzLookup(codes), 'MusicBrainz'); } catch (e) { tried.push('MusicBrainz failed'); }
+  let spHit = null;
+  if (SP.tok()) {
+    scanMsg('Looking in Spotify');
+    try { spHit = (await spSearch('upc:' + code))[0] || null; } catch (e) {}
+    if (spHit) { merge({ artist: spHit.artists.join(', '), title: spHit.name, year: spHit.year }, 'Spotify'); }
+  }
   closeSheet(); openRecord(null, pre);
-  toast(found ? 'Found it. Check the details, then save.' : 'Not found online. Fill in the details by hand.');
-  if (found && SP.tok()) sheetSearch();
+  if (spHit) Object.assign(S.draft, { spotifyId: spHit.id, spotifyName: spHit.name, spotifyArtist: spHit.artists.join(', '), cover: spHit.cover });
+  if (S.draft && S.draft.spotifyId) { const c = $('#sp-cur'); if (c) c.innerHTML = spCurrentHTML(); }
+  toast(got.length ? 'Found in ' + got.join(' and ') + '. Check the details, then save.' : 'Nothing found for ' + code + (tried.length ? ' (' + tried.join(', ') + ')' : '') + '. Fill in by hand.', got.length ? 4000 : 7000);
+  if (pre.artist && pre.title && SP.tok() && !(S.draft && S.draft.spotifyId)) {
+    const d = S.draft;
+    try {
+      const best = rank(d, await spSearch(`${pre.artist} ${pre.title}`))[0];
+      if (best && best.score === 2 && S.draft === d) {
+        Object.assign(d, { spotifyId: best.id, spotifyName: best.name, spotifyArtist: best.artists.join(', '), cover: best.cover });
+        const c = $('#sp-cur'); if (c) c.innerHTML = spCurrentHTML();
+      } else if (S.draft === d) sheetSearch();
+    } catch (e) {}
+  }
 }
 
 const seenKey = () => 'musicbox_seen_' + (S.user ? S.user.uid : '');
@@ -1364,7 +1469,20 @@ function openBell() {
   lset(seenKey(), String(Date.now())); updateBell();
 }
 
-document.addEventListener('click', e => {
+function showErr(err) {
+  let b = document.getElementById('errbar');
+  if (!b) { b = document.createElement('div'); b.id = 'errbar'; b.style.cssText = 'position:fixed;left:0;right:0;top:0;z-index:99;background:#b00020;color:#fff;padding:10px 14px;font:13px/1.35 sans-serif;word-break:break-word'; b.onclick = () => b.remove(); document.body.appendChild(b); }
+  b.textContent = 'Error: ' + ((err && (err.message || err.reason && err.reason.message || err.reason)) || String(err)) + ' (tap to hide)';
+}
+window.addEventListener('error', e => showErr(e.error || e.message));
+window.addEventListener('unhandledrejection', e => showErr(e));
+if (/[?&]debug/.test(location.search)) document.addEventListener('click', e => {
+  let d = document.getElementById('dbgbar');
+  if (!d) { d = document.createElement('div'); d.id = 'dbgbar'; d.style.cssText = 'position:fixed;left:0;right:0;bottom:60px;z-index:99;background:#222;color:#0f0;padding:6px 10px;font:12px monospace;pointer-events:none'; document.body.appendChild(d); }
+  const t = e.target; d.textContent = 'tap: ' + (t.tagName || '?') + (t.id ? '#' + t.id : '') + ' ' + [...(t.attributes || [])].filter(a => a.name.startsWith('data-')).map(a => a.name + '=' + a.value).join(' ');
+}, true);
+document.addEventListener('click', e => { try { onClickInner(e); } catch (err) { showErr(err); } });
+function onClickInner(e) {
   const t = e.target;
   if (t.id === 'sheet') { closeSheet(); return; }
   if (t.id === 'tdet') { $('#tdet').classList.add('hide'); return; }
@@ -1377,6 +1495,7 @@ document.addEventListener('click', e => {
   const tr = t.closest('[data-trophy]'); if (tr) { showTrophy(tr.dataset.trophy); return; }
   const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; S.page = 0; $('#chips').innerHTML = chipsHTML(); renderLibraryList(); return; }
   const pick = t.closest('[data-pick]'); if (pick) { pickResult(+pick.dataset.pick); return; }
+  const dp = t.closest('[data-dpick]'); if (dp) { discogsPick(+dp.dataset.dpick); return; }
   const open = t.closest('[data-open]'); if (open) { openRecord(open.dataset.open); return; }
   const b = t.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act;
@@ -1386,6 +1505,11 @@ document.addEventListener('click', e => {
   else if (act === 'spin') openSpin(false);
   else if (act === 'spin-again') openSpin(true);
   else if (act === 'bell') openBell();
+  else if (act === 'fill-dc') fillFromDiscogs();
+  else if (act === 'fill-stop') S.stop = true;
+  else if (act === 'dc-search') discogsSearch();
+  else if (act === 'dtoken-save') { lset('musicbox_discogs_token', ($('#dtoken').value || '').trim()); toast('Saved'); renderSettings(); }
+  else if (act === 'dtoken-clear') { lset('musicbox_discogs_token', ''); toast('Removed'); renderSettings(); }
   else if (act === 'close') closeSheet();
   else if (act === 'tclose') $('#tdet').classList.add('hide');
   else if (act === 'save') saveDraft();
@@ -1401,7 +1525,7 @@ document.addEventListener('click', e => {
   else if (act === 'welcome') showWelcome();
   else if (act === 'ddhide') { lset('musicbox_hide_' + dayKey(new Date()), '1'); renderLibrary(); }
   else if (act === 'signout') { closeSheet(); fb.A.signOut(fb.auth); }
-});
+}
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sort') { S.sort = t.value; S.page = 0; renderLibraryList(); }
@@ -1411,6 +1535,7 @@ document.addEventListener('change', e => {
 document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; S.page = 0; renderLibraryList(); } });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'scan-code') { e.preventDefault(); lookupBarcode(e.target.value); }
+  if (e.key === 'Enter' && e.target.id === 'dc-q') { e.preventDefault(); discogsSearch(); }
   if (e.key === 'Enter' && e.target.id === 'sp-q') { e.preventDefault(); sheetSearch(); }
   if (e.key === 'Escape') { closeSheet(); $('#tdet').classList.add('hide'); }
 });

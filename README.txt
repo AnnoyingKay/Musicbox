@@ -1,4 +1,4 @@
-MUSICBOX v2
+MUSICBOX v9
 
 Files for the Musicbox repo (root): index.html, sw.js, manifest.webmanifest, icon-192.png, icon-512.png
 Firebase console: publish firestore.rules (new vinylMeta block, needed for trophies to be saved)
