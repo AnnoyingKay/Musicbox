@@ -466,7 +466,7 @@ function startListening() {
   });
   unsubP = fb.F.onSnapshot(pcol(), snap => {
     S.people = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.peopleReady = true; S.peopleFail = false;
-    ensureMe(); checkTrophies(); fillStrip();
+    ensureMe(); checkTrophies(); fillStrip(); if (S.tab === 'wish') refreshWish();
     if (S.tab === 'household') renderHousehold(); else if (S.tab === 'trophies') renderTrophies();
   }, err => { S.peopleFail = true; S.peopleReady = true; if (S.tab === 'household') renderHousehold(); });
   unsubW = fb.F.onSnapshot(wcol(), snap => {
@@ -1007,6 +1007,38 @@ async function fillFromDiscogs() {
   if (p()) p().textContent = (err ? err + ' ' : '') + `Filled ${ok} of ${todo.length}.` + (S.stop ? ' Stopped.' : '');
   if (st) st.classList.add('hide');
 }
+async function coverAll() {
+  const todo = S.recs.filter(r => !r.cover);
+  if (!todo.length) { if ($('#cprog')) $('#cprog').textContent = 'Every record already has a cover.'; return; }
+  S.matching = true; S.stop = false;
+  const prog = () => $('#cprog'), bar = () => $('#cbar');
+  if ($('#cover-stop')) $('#cover-stop').classList.remove('hide');
+  if (bar()) bar().classList.remove('hide');
+  let got = 0, n = 0, failed = '', dcOff = false;
+  for (const r of todo) {
+    if (S.stop) break;
+    n++;
+    if (prog()) { prog().textContent = `Looking at ${n} of ${todo.length}. Covers found ${got}.`; bar().firstElementChild.style.width = (n / todo.length * 100) + '%'; }
+    let url = '', sp = null;
+    try {
+      if (SP.tok()) {
+        if (r.spotifyId) { const j = await spGet('https://api.spotify.com/v1/albums/' + r.spotifyId, {}); url = (j.images && (j.images[1] || j.images[0]) || {}).url || ''; }
+        else { const best = rank(r, await spSearch(`${r.artist} ${r.title}`))[0]; if (best && best.score === 2) url = best.cover; }
+      }
+    } catch (e) { if (e.message === 'NOSP' || /^SP(401|403)/.test(e.message)) failed = spErrorText(e); }
+    if (!url && r.discogsId && dTok() && !dcOff) {
+      try { const j = await getJSON(`https://api.discogs.com/releases/${encodeURIComponent(r.discogsId)}?token=${encodeURIComponent(dTok())}`); url = ((j.images || [])[0] || {}).uri150 || j.thumb || ''; }
+      catch (e) { if (e.message === 'HTTP401') dcOff = true; }
+      await sleep(1100);
+    }
+    if (url) { try { await fb.F.updateDoc(ref(r.id), { cover: url, updatedAt: Date.now() }); got++; } catch (e) { failed = 'Could not save.'; break; } }
+    await sleep(200);
+    if (failed) break;
+  }
+  S.matching = false;
+  if (prog()) prog().textContent = (failed ? failed + ' ' : '') + `Added ${got} cover${got === 1 ? '' : 's'} to ${todo.length} record${todo.length === 1 ? '' : 's'} without one.${todo.length - got ? ' The rest you can set by hand in the record.' : ''}`;
+  if ($('#cover-stop')) $('#cover-stop').classList.add('hide');
+}
 async function matchAll() {
   const todo = S.recs.filter(r => !r.spotifyId);
   if (!todo.length) return;
@@ -1021,8 +1053,8 @@ async function matchAll() {
     if (prog()) { prog().textContent = `Matching ${n} of ${todo.length}. Linked ${linked}.`; bar().firstElementChild.style.width = (n / todo.length * 100) + '%'; }
     try {
       const best = rank(r, await spSearch(`${r.artist} ${r.title}`))[0];
-      if (best && best.score === 2) {
-        await fb.F.updateDoc(ref(r.id), { spotifyId: best.id, spotifyName: best.name, spotifyArtist: best.artists.join(', '), cover: best.cover, updatedAt: Date.now() });
+      if (best && (best.score === 2 || (best.score === 1 && ($('#loose') || {}).checked))) {
+        await fb.F.updateDoc(ref(r.id), { spotifyId: best.id, spotifyName: best.name, spotifyArtist: best.artists.join(', '), cover: r.cover && String(r.cover).startsWith('data:') ? r.cover : best.cover, updatedAt: Date.now() });
         linked++;
       }
     } catch (e) { failed = spErrorText(e); break; }
@@ -1443,8 +1475,13 @@ function renderSettings() {
       <div class="note">Adds genres, country and any missing label, catalogue number or colour to records that came from your Discogs import. About one record a second, so keep this page open.</div>
       <div class="row wrap"><button class="btn small" data-act="fill-dc" ${dTok() && S.recs.some(r => r.discogsId && !r.genres) ? '' : 'disabled'}>Fill missing details</button><button class="btn ghost small hide" id="fill-stop" data-act="fill-stop">Stop</button></div>
       <div id="fill-prog" class="note">${dTok() ? '' : 'Needs a Discogs token above.'}</div></div>
+    <div class="box"><b>Add covers automatically</b>
+      <div class="note">Finds a cover for ${S.recs.filter(r => !r.cover).length} record${S.recs.filter(r => !r.cover).length === 1 ? '' : 's'} without one. It uses Spotify first, then Discogs. Covers you added yourself are never replaced.</div>
+      <div class="row wrap"><button class="btn small" data-act="cover-all" ${S.recs.some(r => !r.cover) && (connected || dTok()) ? '' : 'disabled'}>Add covers</button><button class="btn ghost small hide" id="cover-stop" data-act="cover-stop">Stop</button></div>
+      <div id="cprog" class="note">${connected || dTok() ? '' : 'Needs Spotify or a Discogs token.'}</div><div class="bar hide" id="cbar"><i></i></div></div>
     <div class="box"><b>Match with Spotify</b>
-      <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly. Close matches are left for you to check by hand.</div>
+      <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly, and fills in the cover. Anything it gets wrong you can change in the record.</div>
+      <label class="note" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="loose" style="width:auto;min-height:0"> Also accept close matches (for example Deluxe or Remastered editions)</label>
       <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
       <div id="prog" class="note"></div><div class="bar hide" id="bar"><i></i></div></div>
     <div class="box"><b>Import from Discogs</b>
@@ -1458,7 +1495,7 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 21</div>
+      <div class="note">App version 22</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
@@ -1762,7 +1799,12 @@ async function wishDiscography(c) {
 }
 const wk = (artist, title) => norm(artist) + '|' + norm(title);
 const ownedKeys = () => new Set(S.recs.map(r => wk(r.artist, r.title)));
-const wishKeys = () => new Set(S.wish.map(r => wk(r.artist, r.title)));
+const wOwner = r => r.ownerUid || (S.people.find(p => (p.email || '') === (r.addedBy || '').toLowerCase()) || {}).id;
+const wishOf = uid => S.wish.filter(r => { const o = wOwner(r); return o ? o === uid : (uid === S.user.uid && !r.addedBy); });
+const mineWish = () => wishOf(S.user.uid);
+const wishKeys = () => new Set(mineWish().map(r => wk(r.artist, r.title)));
+const theirKeys = () => new Set(S.wish.filter(r => { const o = wOwner(r); return o && o !== S.user.uid; }).map(r => wk(r.artist, r.title)));
+const matchCount = () => { const t = theirKeys(); return mineWish().filter(r => t.has(wk(r.artist, r.title))).length; };
 const isAlbumish = it => !it.spType || it.spType === 'album';
 function wishState(it, owned, wished) {
   const k = wk(it.artist, it.title);
@@ -1794,10 +1836,11 @@ function refreshWish() {
       <div class="row wrap" style="padding-bottom:8px"><span class="note grow">${shown.length} found, ${missing.length} not owned or wished yet</span>${missing.length ? `<button class="btn small" data-act="wd-all">Add all ${missing.length}</button>` : ''}</div>
       ${shown.length ? shown.map(it => { const st = wishState(it, owned, wished); return `<div class="item">${wcov(it.cover || it.thumb)}<div class="meta"><b>${esc(it.title)}</b><span>${esc(it.year || '')}${it.spType && it.spType !== 'album' ? ' · ' + esc(it.spType) : ''}</span></div>${st === 'owned' ? '<span class="tag ok">Owned</span>' : st === 'wish' ? '<span class="tag">On wishlist</span>' : `<button class="btn small" data-wadd="${esc(it.key)}">+ Wish</button>`}</div>`; }).join('') : '<div class="empty">Nothing found for this artist.</div>'}`;
   }
-  const rows = S.wish.slice().sort((a, b) => norm(a.artist).localeCompare(norm(b.artist)) || (+a.year || 9999) - (+b.year || 9999) || norm(a.title).localeCompare(norm(b.title)));
-  lst.innerHTML = `<h3 style="margin:18px 0 6px">Wishlist${S.wishReady ? ' · ' + rows.length : ''}</h3>` +
+  const tk = theirKeys(), mc = matchCount();
+  const rows = mineWish().sort((a, b) => norm(a.artist).localeCompare(norm(b.artist)) || (+a.year || 9999) - (+b.year || 9999) || norm(a.title).localeCompare(norm(b.title)));
+  lst.innerHTML = `<h3 style="margin:18px 0 6px">My wishlist${S.wishReady ? ' · ' + rows.length : ''}</h3><div class="note">Only you add to this list. Your partner can look at it from the Household tab.${mc ? ' <b>' + mc + ' match' + (mc === 1 ? '' : 'es') + ' with theirs.</b>' : ''}</div>` +
     (S.wishFail ? '<div class="note err">The wishlist could not be loaded. Publish the latest Firestore rules.</div>' : '') +
-    (rows.length ? rows.map(r => `<div class="item" data-wopen="${esc(r.id)}">${wcov(r.cover || r.thumb)}<div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span>${r.addedByName ? `<span class="note">${esc(r.addedByName)}</span>` : ''}</div></div>`).join('') : '<div class="empty">Nothing on the wishlist yet. Search an artist above.</div>');
+    (rows.length ? rows.map(r => `<div class="item" data-wopen="${esc(r.id)}">${wcov(r.cover || r.thumb)}<div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span></div>${tk.has(wk(r.artist, r.title)) ? '<span class="tag ok">Match!</span>' : ''}</div>`).join('') : '<div class="empty">Nothing on the wishlist yet. Search an artist above.</div>');
 }
 async function wishSearch() {
   const q = (($('#wq') || {}).value || '').trim(); S.wq = q; if (!q) return;
@@ -1813,7 +1856,7 @@ async function wishPick(i) {
   S.wd = { phase: 'disc', cand: c, items: r.items, errs: r.errs, all: false, list: back.list }; refreshWish();
 }
 function wishData(it) {
-  return { artist: it.artist, title: it.title, year: it.year || '', cover: it.cover || '', thumb: it.thumb || '', spotifyId: it.spotifyId || '', discogsId: it.discogsId || '', addedAt: Date.now(), addedBy: S.user.email || '', addedByName: firstName() };
+  return { artist: it.artist, title: it.title, year: it.year || '', cover: it.cover || '', thumb: it.thumb || '', spotifyId: it.spotifyId || '', discogsId: it.discogsId || '', addedAt: Date.now(), addedBy: S.user.email || '', addedByName: firstName(), ownerUid: S.user.uid };
 }
 async function wishAdd(key) {
   const it = S.wd && S.wd.items && S.wd.items.find(x => x.key === key); if (!it) return;
@@ -1837,7 +1880,7 @@ function openWish(id) {
   const r = S.wish.find(x => x.id === id); if (!r) return; S.wsel = r;
   openSheet(`<div class="row"><h3 class="grow">${esc(r.title)}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
     <div class="spinc">${r.cover || r.thumb ? `<img class="cov" referrerpolicy="no-referrer" src="${esc(r.cover || r.thumb)}" alt="">` : '<div class="cov"></div>'}
-    <div class="note">${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</div>${r.addedByName ? `<div class="note">Added by ${esc(r.addedByName)}</div>` : ''}</div>
+    <div class="note">${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</div>${theirKeys().has(wk(r.artist, r.title)) ? '<div class="note"><b>Match!</b> It is on your partner’s wishlist too.</div>' : ''}</div>
     <div class="row wrap" style="justify-content:center;margin-top:10px">
       <button class="btn small" data-act="wish-got">Got it</button>
       ${r.spotifyId ? `<a class="btn green small" style="text-decoration:none;display:inline-flex;align-items:center" href="https://open.spotify.com/album/${esc(r.spotifyId)}" data-spid="${esc(r.spotifyId)}" target="_blank" rel="noopener">Open in Spotify</a>` : ''}
@@ -1850,6 +1893,19 @@ function wishGot() {
   openRecord(null, { artist: r.artist, title: r.title, year: r.year || '', spotifyId: r.spotifyId || '', spotifyName: r.spotifyId ? r.title : '', spotifyArtist: r.spotifyId ? r.artist : '', cover: r.spotifyId ? (r.cover || '') : '', format: 'Vinyl' });
   S.fromWish = r.id;
   if (!r.spotifyId && SP.tok()) sheetSearch();
+}
+function openTheirWish(uid) {
+  const p = S.people.find(x => x.id === uid); if (!p) return;
+  const rows = wishOf(uid).sort((a, b) => norm(a.artist).localeCompare(norm(b.artist)) || (+a.year || 9999) - (+b.year || 9999));
+  const mine = wishKeys(), owned = ownedKeys();
+  const mc = rows.filter(r => mine.has(wk(r.artist, r.title))).length;
+  openSheet(`<div class="row"><h3 class="grow">${esc(personName(p))}’s wishlist</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="note">${rows.length} album${rows.length === 1 ? '' : 's'}${mc ? ` · <b>${mc} match${mc === 1 ? '' : 'es'}</b> with yours` : ''}</div>
+    ${rows.length ? rows.map(r => { const k = wk(r.artist, r.title); return `<div class="res" style="cursor:default">${wcov(r.cover || r.thumb)}<div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span></div>${mine.has(k) ? '<span class="tag ok">Match!</span>' : owned.has(k) ? '<span class="tag ok">Owned</span>' : `<button class="btn ghost small" data-wcopy="${esc(r.id)}">Add to mine</button>`}</div>`; }).join('') : '<div class="empty">Nothing here yet.</div>'}`);
+}
+async function wishCopy(id) {
+  const r = S.wish.find(x => x.id === id); if (!r) return;
+  try { await fb.F.addDoc(wcol(), wishData(r)); toast('Added to your wishlist'); const o = wOwner(r); if (o) openTheirWish(o); } catch (e) { toast('Could not save'); }
 }
 async function wishDel() {
   const r = S.wsel; if (!r) return;
@@ -1893,6 +1949,7 @@ function renderHousehold() {
       ${ft.length ? `<div class="favrow">${ft.map(x => `<div class="favt">${trophySVG(x.t, x.lvl, 54)}<div>${esc(x.t.n)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
       <h4>Favourite vinyls</h4>
       ${fv.length ? `<div class="favrow">${fv.map(r => `<div class="favv" data-open="${esc(r.id)}">${r.cover ? `<img class="cov" style="width:72px;height:72px" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="cov" style="width:72px;height:72px"></div>'}<div class="note">${esc(r.title)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
+      ${!mine ? (() => { const n = wishOf(p.id).length, t = new Set(mineWish().map(r => wk(r.artist, r.title))), m = wishOf(p.id).filter(r => t.has(wk(r.artist, r.title))).length; return `<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="their-wish" data-uid="${esc(p.id)}">Wishlist · ${n}</button>${m ? `<span class="tag ok">${m} match${m === 1 ? '' : 'es'}!</span>` : ''}</div>`; })() : ''}
       ${mine ? `<label>Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">` : ''}
       ${mine ? '<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button><button class="btn ghost small" data-act="themes">Change theme</button></div>' : ''}
     </div>`;
@@ -2009,6 +2066,7 @@ function onClickInner(e) {
   const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; S.page = 0; $('#chips').innerHTML = chipsHTML(); renderLibraryList(); return; }
   const pick = t.closest('[data-pick]'); if (pick) { pickResult(+pick.dataset.pick); return; }
   const wc = t.closest('[data-wc]'); if (wc) { wishPick(+wc.dataset.wc); return; }
+  const wcp = t.closest('[data-wcopy]'); if (wcp) { wishCopy(wcp.dataset.wcopy); return; }
   const wa = t.closest('[data-wadd]'); if (wa) { wishAdd(wa.dataset.wadd); return; }
   const wo = t.closest('[data-wopen]'); if (wo) { openWish(wo.dataset.wopen); return; }
   const ft = t.closest('[data-ft]'); if (ft) { toggleFavTrophy(ft.dataset.ft); return; }
@@ -2028,6 +2086,9 @@ function onClickInner(e) {
   else if (act === 'annx') { markSeen(); refreshLibrary(); }
   else if (act === 'fav-trophies') openFavTrophies();
   else if (act === 'fav-vinyls') openFavVinyls();
+  else if (act === 'their-wish') openTheirWish(b.dataset.uid);
+  else if (act === 'cover-all') coverAll();
+  else if (act === 'cover-stop') S.stop = true;
   else if (act === 'themes') openThemes();
   else if (act === 'cov-clear') { if (S.draft) { S.draft.cover = ''; updateCoverPrev(); } }
   else if (act === 'wish-search') wishSearch();
