@@ -1,4 +1,4 @@
-MUSICBOX v10
+MUSICBOX v11
 
 Files for the Musicbox repo (root): index.html, sw.js, manifest.webmanifest, icon-192.png, icon-512.png
 Firebase console: publish firestore.rules (new vinylMeta block, needed for trophies to be saved)
@@ -8,3 +8,5 @@ optional/Shelf-sw.js: replaces sw.js in the Shelf repo so Shelf stops deleting M
 2. Firebase console > Firestore > Rules: paste firestore.rules, Publish.
 3. Optional: upload optional/Shelf-sw.js to the Shelf repo as sw.js.
 4. Open https://annoyingkay.github.io/Musicbox/ and reload twice.
+
+v11 adds the Wishlist tab. It needs no new rules: it is stored under vinylMeta, which the existing rules already cover.
