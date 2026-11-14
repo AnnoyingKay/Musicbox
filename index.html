@@ -1220,6 +1220,7 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
+      <div class="note">App version 5</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
@@ -1369,7 +1370,7 @@ document.addEventListener('click', e => {
   if (t.id === 'tdet') { $('#tdet').classList.add('hide'); return; }
   if (t.closest('#tpop')) { popNext(); return; }
   if (t.closest('a.play')) return;
-  const tab = t.closest('[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
+  const tab = t.closest('button[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
   const th = t.closest('[data-theme-id]'); if (th) { applyTheme(th.dataset.themeId); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); return; }
   const vw = t.closest('[data-view]'); if (vw) { S.view = vw.dataset.view; lset('musicbox_view', S.view); renderLibrary(); return; }
   const pg = t.closest('[data-pg]'); if (pg) { S.page += +pg.dataset.pg; renderLibraryList(); toListTop(); return; }

@@ -1,5 +1,5 @@
 /* Musicbox service worker. Network first, falls back to the cached copy when offline. */
-const CACHE = 'musicbox-v3';
+const CACHE = 'musicbox-v5';
 const SHELL = ['./', 'index.html', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 self.addEventListener('install', e => { e.waitUntil(caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})); self.skipWaiting(); });
 self.addEventListener('activate', e => {
@@ -9,5 +9,5 @@ self.addEventListener('fetch', e => {
   const req = e.request, url = new URL(req.url);
   if (req.method !== 'GET' || url.origin !== location.origin) return;
   if (!url.pathname.startsWith(new URL(self.registration.scope).pathname)) return;
-  e.respondWith(fetch(req).then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; }).catch(() => caches.match(req).then(m => m || caches.match('index.html'))));
+  e.respondWith(fetch(req, { cache: 'no-store' }).then(res => { if (res.ok) { const copy = res.clone(); caches.open(CACHE).then(c => c.put(req, copy)); } return res; }).catch(() => caches.match(req).then(m => m || caches.match('index.html'))));
 });
