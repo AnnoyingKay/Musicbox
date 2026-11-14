@@ -206,6 +206,13 @@ a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0
 .spinc .cov{width:168px;height:168px;margin:0 auto 12px;display:block}
 .spinc h3{margin:0 0 4px}
 @media (min-width:1100px){.fab2{right:38px;bottom:92px}.bell{right:24px}}
+.av{width:46px;height:46px;border-radius:50%;object-fit:cover;background:var(--acc);color:var(--on);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;flex:none;margin-right:12px}
+.hh h4{margin:14px 0 8px;font-size:13px;color:var(--dim);font-weight:600;text-transform:uppercase;letter-spacing:.04em}
+.favrow{display:flex;gap:12px;flex-wrap:wrap}
+.favt{width:78px;text-align:center;font-size:12px}
+.favv{width:76px;font-size:12px;cursor:pointer}
+.favv .note{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+@media (min-width:1100px){html[data-tab=household] main{column-count:2;column-gap:14px}.hh{break-inside:avoid}}
 </style>
 </head>
 <body>
@@ -238,6 +245,7 @@ a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0
     <button data-tab="library" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Library</button>
     <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Stats</button>
     <button data-tab="wish"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>Wishlist</button>
+    <button data-tab="household"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6M17 5.5a2.5 2.5 0 0 1 0 5M18 14.5c2 .5 3.5 2.2 3.5 5"/></svg>Household</button>
     <button data-tab="trophies"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/></svg>Trophies</button>
     <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
   </nav>
@@ -275,7 +283,7 @@ const S = {
   user: null, recs: [], meta: null, recsReady: false, metaReady: false, started: false,
   tab: 'library', q: '', filter: 'all', sort: 'artist', view: ls('musicbox_view', 'list'), pp: +ls('musicbox_pp', '50') || 50, page: 0,
   draft: null, results: [], matching: false, stop: false, dq: null,
-  wish: [], wishReady: false, wq: '', wd: null, fromWish: null, wsel: null
+  people: [], peopleReady: false, meDone: false, wish: [], wishReady: false, wq: '', wd: null, fromWish: null, wsel: null
 };
 
 /* ---------- toast ---------- */
@@ -409,7 +417,7 @@ function spErrorText(e) {
 /* ====================================================================
    Firebase
    ==================================================================== */
-let fb = null, unsubR = null, unsubM = null, unsubW = null;
+let fb = null, unsubR = null, unsubM = null, unsubW = null, unsubP = null;
 async function fbInit() {
   const base = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
   const [appM, authM, fsM] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
@@ -423,6 +431,8 @@ async function fbInit() {
 const col = () => fb.F.collection(fb.db, COLLECTION);
 const ref = id => fb.F.doc(fb.db, COLLECTION, id);
 const metaRef = () => fb.F.doc(fb.db, 'vinylMeta', 'household');
+const pcol = () => fb.F.collection(fb.db, 'vinylMeta', 'household', 'people');
+const pref = id => fb.F.doc(fb.db, 'vinylMeta', 'household', 'people', id);
 const wcol = () => fb.F.collection(fb.db, 'vinylMeta', 'household', 'wish');
 const wref = id => fb.F.doc(fb.db, 'vinylMeta', 'household', 'wish', id);
 
@@ -433,6 +443,8 @@ function stopListening() {
   if (unsubR) { unsubR(); unsubR = null; }
   if (unsubM) { unsubM(); unsubM = null; }
   if (unsubW) { unsubW(); unsubW = null; }
+  if (unsubP) { unsubP(); unsubP = null; }
+  S.people = []; S.peopleReady = false; S.meDone = false;
   S.wish = []; S.wishReady = false;
   S.recsReady = false; S.metaReady = false; S.meta = null; S.started = false;
 }
@@ -450,8 +462,13 @@ function startListening() {
     if (err && err.code === 'permission-denied') { $('#denied-uid').textContent = S.user.uid; show('denied'); }
     else { show('app'); toast('Could not load the collection'); }
   });
+  unsubP = fb.F.onSnapshot(pcol(), snap => {
+    S.people = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.peopleReady = true; S.peopleFail = false;
+    ensureMe(); checkTrophies(); fillStrip();
+    if (S.tab === 'household') renderHousehold(); else if (S.tab === 'trophies') renderTrophies();
+  }, err => { S.peopleFail = true; S.peopleReady = true; if (S.tab === 'household') renderHousehold(); });
   unsubW = fb.F.onSnapshot(wcol(), snap => {
-    S.wish = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.wishReady = true; S.wishFail = false;
+    S.wish = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.wishReady = true; S.wishFail = false; checkTrophies();
     if (S.tab === 'wish') refreshWish();
   }, err => { S.wishFail = true; if (S.tab === 'wish') refreshWish(); });
   unsubM = fb.F.onSnapshot(metaRef(), snap => {
@@ -490,8 +507,10 @@ function openRecord(id, pre) {
   const d = S.draft;
   openSheet(`
     <div class="row"><h3 class="grow">${r ? 'Edit record' : 'Add a record'}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    ${r && r.addedBy ? `<div class="note">Added by ${esc(adderName(r))}${r.addedAt ? ' on ' + esc(fmtDate(r.addedAt)) : ''}</div>` : ''}
     ${fieldHTML('artist', 'Artist', d.artist)}
     ${fieldHTML('title', 'Title', d.title)}
+    <div id="dup-note"></div>
     <div class="row"><div class="grow">${fieldHTML('year', 'Year', d.year, 'number')}</div><div class="grow">${fieldHTML('copies', 'Copies', d.copies || 1, 'number')}</div></div>
     ${fieldHTML('label', 'Label', d.label)}
     ${fieldHTML('catno', 'Catalogue number', d.catno)}
@@ -524,6 +543,26 @@ function openRecord(id, pre) {
       <button class="btn grow" data-act="save">Save</button>
       ${r ? '<button class="btn red" data-act="delete">Delete</button>' : ''}
     </div>`);
+  updateDupNote();
+}
+
+function findDupes(d) {
+  const k = wk(d.artist, d.title), exact = [], versions = [];
+  for (const r of S.recs) {
+    if (d.id && r.id === d.id) continue;
+    if ((d.discogsId && r.discogsId === d.discogsId) || (d.barcode && r.barcode === d.barcode)) { exact.push(r); continue; }
+    if (wk(r.artist, r.title) === k) versions.push(r);
+  }
+  return { exact, versions };
+}
+const verDesc = r => [r.year, r.label, r.catno, r.format].filter(Boolean).join(', ') + (r.addedBy ? ' (added by ' + adderName(r) + ')' : '');
+function updateDupNote() {
+  const n = $('#dup-note'); if (!n || !S.draft || S.draft.id) return;
+  const g = k => ((document.querySelector('#panel [data-f="' + k + '"]') || {}).value || '').trim();
+  const d = { artist: g('artist'), title: g('title'), discogsId: S.draft.discogsId, barcode: g('barcode') };
+  if (!d.artist || !d.title) { n.innerHTML = ''; return; }
+  const f = findDupes(d), list = f.exact.concat(f.versions);
+  n.innerHTML = list.length ? `<div class="note err" style="margin-top:6px">${f.exact.length ? 'Already in the collection' : 'Another version is in the collection'}: ${list.slice(0, 3).map(r => `<span data-open="${esc(r.id)}" style="text-decoration:underline;cursor:pointer">${esc(r.title)} (${esc(verDesc(r))})</span>`).join('; ')}</div>` : '';
 }
 function collectDraft() {
   document.querySelectorAll('#panel [data-f]').forEach(el => { S.draft[el.dataset.f] = el.value.trim(); });
@@ -534,6 +573,11 @@ async function saveDraft() {
   collectDraft();
   const d = S.draft;
   if (!d.artist || !d.title) { toast('Artist and title are needed'); return; }
+  if (!d.id) {
+    const f = findDupes(d);
+    if (f.exact.length) { const id = f.exact[0].id; closeSheet(); toast('Already in the collection. Opening it.'); openRecord(id); return; }
+    if (f.versions.length && !confirm(`"${d.title}" by ${d.artist} is already in the collection (${verDesc(f.versions[0])}).\n\nAdd this as another version?`)) return;
+  }
   const now = Date.now();
   const data = {
     artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', barcode: d.barcode || '', country: d.country || '', genres: d.genres || '', format: d.format || '',
@@ -898,7 +942,7 @@ const fmtN = n => Number(n).toLocaleString('en-IE');
 const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
 const pad = n => String(n).padStart(2, '0');
 const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
-const firstName = () => ((S.user && S.user.displayName) || '').trim().split(/\s+/)[0] || '';
+const firstName = () => { const m = (S.people || []).find(p => S.user && p.id === S.user.uid); return (m && m.nick) || ((S.user && S.user.displayName) || '').trim().split(/\s+/)[0] || ''; };
 
 /* ====================================================================
    Trophies. All of them come from records you have saved.
@@ -940,15 +984,19 @@ const TR = [
   { id: 'notes', n: 'Liner Notes', g: 'note', u: 'records with your own notes', t: [1, 5, 20, 50, 100], v: c => c.notes },
   { id: 'moved', n: 'Moved In', g: 'tray', u: 'records imported from Discogs', t: [25, 100, 300], v: c => c.discogs },
   { id: 'haul', n: 'Big Haul', g: 'stack', u: 'records saved in one day, not counting imports', t: [3, 5, 10, 20, 40], v: c => c.haul },
+  { id: 'ours', n: 'Our Shelf', g: 'people', s: 1, u: 'albums in the household', t: [25, 100, 250, 500, 1000], v: c => c.ours },
+  { id: 'common', n: 'Common Ground', g: 'joint', s: 1, u: 'artists you have both added', t: [1, 5, 10, 20, 40], v: c => c.common },
+  { id: 'wishes', n: 'Wish Upon', g: 'star', s: 1, u: 'albums on the shared wishlist', t: [5, 25, 50, 100, 200], v: c => c.wishes },
+  { id: 'fair', n: 'Fair Share', g: 'check', s: 1, t: [1], d: 'You have each saved at least ten records, and neither has saved more than 60 percent of them.', v: c => c.fair },
   { id: 'vintage', n: 'Vintage', g: 'star', t: [1], d: 'A record released before 1970.', v: c => c.vintage },
   { id: 'older', n: 'Older Still', g: 'hourglass', t: [1], d: 'A record released before 1960.', v: c => c.older },
   { id: 'fresh', n: 'Fresh Pressing', g: 'cal', t: [1], d: 'A record released this year.', v: c => c.fresh },
-  { id: 'joint', n: 'Joint Account', g: 'joint', t: [1], d: 'You have each saved at least five records.', v: c => c.joint },
+  { id: 'joint', n: 'Joint Account', g: 'joint', s: 1, t: [1], d: 'You have each saved at least five records.', v: c => c.joint },
   { id: 'full', n: 'Full House', g: 'check', t: [1], d: 'Every record is linked to Spotify, with at least ten in the collection.', v: c => c.full },
   { id: 'night', n: 'Night Shift', g: 'moon', t: [1], h: true, d: 'A record saved between midnight and five in the morning.', v: c => c.night ? 1 : 0 }
 ];
 const COLOUR_RE = /\b(clear|colou?red|red|blue|green|yellow|orange|pink|purple|violet|white|gold|silver|splatter|marbled?|translucent|transparent|picture disc|smoke|cloudy|swirl|neon|opaque|galaxy|bone|cream|grey|gray|brown|aqua|teal|magenta|lilac)\b/i;
-function mkCtx(rs) {
+function mkCtx(rs, all) {
   const yr = new Date().getFullYear();
   const c = { n: rs.length, linked: 0, colour: 0, doubles: 0, mint: 0, notes: 0, discogs: 0, old: 9999, fresh: 0, night: 0 };
   const artists = new Map(), labels = new Set(), decades = new Set(), perDay = new Map(), adders = new Map();
@@ -963,13 +1011,18 @@ function mkCtx(rs) {
     if (y >= 1900 && y <= yr + 1) { decades.add(Math.floor(y / 10) * 10); if (y < c.old) c.old = y; if (y === yr) c.fresh++; }
     const a = norm(r.artist); if (a) artists.set(a, (artists.get(a) || 0) + 1);
     const l = norm(r.label); if (l) labels.add(l);
-    if (r.addedBy) adders.set(r.addedBy, (adders.get(r.addedBy) || 0) + 1);
     if (!r.discogsId && r.addedAt) {
       const d = new Date(r.addedAt), k = dayKey(d);
       perDay.set(k, (perDay.get(k) || 0) + 1);
       if (d.getHours() < 5) c.night++;
     }
   }
+  for (const r of (all || rs)) if (r.addedBy) adders.set(r.addedBy.toLowerCase(), (adders.get(r.addedBy.toLowerCase()) || 0) + 1);
+  const artistAdders = new Map();
+  for (const r of (all || rs)) { if (!r.addedBy) continue; const e = r.addedBy.toLowerCase(), a = norm(r.artist); if (!a) continue; if (!artistAdders.has(a)) artistAdders.set(a, new Set()); artistAdders.get(a).add(e); }
+  c.ours = (all || rs).length; c.common = [...artistAdders.values()].filter(x => x.size >= 2).length; c.wishes = (S.wish || []).length;
+  const av = [...adders.values()].sort((x, y) => y - x), sum = av.reduce((n, x) => n + x, 0);
+  c.fair = (av.length >= 2 && av[1] >= 10 && av[0] / sum <= 0.6) ? 1 : 0;
   c.artists = artists.size; c.labels = labels.size; c.decades = decades.size;
   c.top = Math.max(0, ...artists.values()); c.haul = Math.max(0, ...perDay.values());
   c.joint = [...adders.values()].filter(v => v >= 5).length >= 2 ? 1 : 0;
@@ -977,14 +1030,18 @@ function mkCtx(rs) {
   c.vintage = c.old < 1970 ? 1 : 0; c.older = c.old < 1960 ? 1 : 0;
   return c;
 }
-function trophyState() {
-  const c = mkCtx(S.recs), best = (S.meta && S.meta.best) || {}, when = (S.meta && S.meta.when) || {};
+const emailOf = () => ((S.user && S.user.email) || '').toLowerCase();
+const recsBy = email => S.recs.filter(r => (r.addedBy || '').toLowerCase() === email);
+const me = () => S.people.find(p => p.id === (S.user && S.user.uid)) || {};
+function trophyStateFor(recs, doc) {
+  const c = mkCtx(recs, S.recs), best = (doc && doc.best) || {}, when = (doc && doc.when) || {};
   const items = TR.map(t => {
     const val = t.v(c), calc = t.t.filter(x => val >= x).length, lvl = Math.max(calc, best[t.id] | 0);
     return { t, val, calc, lvl, when: Array.from({ length: lvl }, (_, i) => when[t.id + '_' + (i + 1)] || 0) };
   });
   return { items, c, by: Object.fromEntries(items.map(x => [x.t.id, x])) };
 }
+const trophyState = () => trophyStateFor(recsBy(emailOf()), me());
 function trophySVG(t, lvl, w = 64) {
   const on = lvl > 0, m = MC[Math.min(Math.max(lvl, 1), 5) - 1], f = on ? m[0] : '#3b3b3e', s = on ? m[1] : '#77777d';
   return `<svg class="tsvg" viewBox="0 0 64 64" width="${w}" height="${w}" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="${f}" stroke="${s}" stroke-width="2"/><circle cx="32" cy="32" r="25" fill="none" stroke="${s}" stroke-width=".8" opacity=".45"/><circle cx="32" cy="32" r="21" fill="none" stroke="${s}" stroke-width=".8" opacity=".3"/><g transform="translate(32 32)" fill="none" stroke="${s}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${GL[t.g]}</g><ellipse cx="22" cy="15" rx="12" ry="5" fill="#fff" opacity=".22" transform="rotate(-28 22 15)"/></svg>`;
@@ -993,20 +1050,21 @@ const trWhy = (t, lvl) => t.u ? `You reached ${fmtN(t.t[lvl - 1])} ${t.u}.` : t.
 
 let awarding = false;
 function checkTrophies() {
-  if (!S.recsReady || !S.metaReady || awarding) return;
-  const st = trophyState(), best = (S.meta && S.meta.best) || {};
+  if (!S.user || !S.recsReady || !S.peopleReady || !(S.metaReady || S.metaFail) || awarding) return;
+  let doc = S.people.find(p => p.id === S.user.uid);
+  const st = trophyState(), best = (doc && doc.best) || {};
   const fresh = st.items.filter(x => x.calc > (best[x.t.id] | 0));
   if (!fresh.length) return;
+  const silent = !(doc && doc.best) && S.meta && S.meta.best && Object.keys(S.meta.best).length > 0;
   const now = Date.now(), patch = { best: {}, when: {} };
   fresh.forEach(x => {
     patch.best[x.t.id] = x.calc;
     for (let L = (best[x.t.id] | 0) + 1; L <= x.calc; L++) patch.when[x.t.id + '_' + L] = now;
   });
-  S.meta = S.meta || {};
-  S.meta.best = { ...best, ...patch.best };
-  S.meta.when = { ...(S.meta.when || {}), ...patch.when };
-  try { fb.F.setDoc(metaRef(), patch, { merge: true }).catch(() => {}); } catch (e) {}
-  celebrate(fresh.map(x => ({ t: x.t, lvl: x.calc })));
+  if (!doc) { doc = { id: S.user.uid }; S.people.push(doc); }
+  doc.best = { ...best, ...patch.best }; doc.when = { ...(doc.when || {}), ...patch.when };
+  try { fb.F.setDoc(pref(S.user.uid), patch, { merge: true }).catch(() => {}); } catch (e) {}
+  if (!silent) celebrate(fresh.map(x => ({ t: x.t, lvl: x.calc })));
   if (S.tab === 'trophies') renderTrophies();
   fillStrip();
 }
@@ -1141,13 +1199,15 @@ function visibleRecs() {
   return a.sort(by);
 }
 const playLink = r => r.spotifyId ? `<a class="play" href="https://open.spotify.com/album/${esc(r.spotifyId)}" data-spid="${esc(r.spotifyId)}" target="_blank" rel="noopener" aria-label="Open in Spotify">&#8599;</a>` : '';
+const verTag = r => { const n = S.vk && S.vk.get(wk(r.artist, r.title)); return n > 1 ? `<span class="tag" style="display:inline;border-color:var(--acc);color:var(--acc)">${n} versions</span> ` : ''; };
+const byTag = r => (S.people.length > 1 && r.addedBy) ? ' · ' + esc(adderName(r)) : '';
 function itemHTML(r) {
   return `<div class="item" data-open="${esc(r.id)}" style="--h:${hue(r.artist)}">
     ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
     <div class="meta">
       <b>${esc(r.title)}</b>
-      <span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span>
-      <span>${r.spotifyId ? '<span class="tag ok" style="display:inline">Linked</span>' : '<span class="tag" style="display:inline">Not linked</span>'}${r.pressing ? ' ' + esc(r.pressing) : ''}${(+r.copies || 1) > 1 ? ' · ' + (+r.copies) + ' copies' : ''}</span>
+      <span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}${byTag(r)}</span>
+      <span>${verTag(r)}${r.spotifyId ? '<span class="tag ok" style="display:inline">Linked</span>' : '<span class="tag" style="display:inline">Not linked</span>'}${r.pressing ? ' ' + esc(r.pressing) : ''}${(+r.copies || 1) > 1 ? ' · ' + (+r.copies) + ' copies' : ''}</span>
     </div>${playLink(r)}</div>`;
 }
 function tileHTML(r) {
@@ -1179,6 +1239,7 @@ function toListTop() {
   window.scrollTo({ top: Math.max(0, l.getBoundingClientRect().top + scrollY - sticky), behavior: 'auto' });
 }
 function renderLibraryList() {
+  S.vk = new Map(); S.recs.forEach(r => { const k = wk(r.artist, r.title); S.vk.set(k, (S.vk.get(k) || 0) + 1); });
   const all = visibleRecs(), pages = Math.max(1, Math.ceil(all.length / S.pp));
   if (S.page >= pages) S.page = pages - 1; if (S.page < 0) S.page = 0;
   const a = all.slice(S.page * S.pp, (S.page + 1) * S.pp), box = $('#lst');
@@ -1228,12 +1289,13 @@ function tcell(x) {
 }
 function renderTrophies() {
   const st = trophyState(), earned = st.items.filter(x => x.lvl > 0), levels = earned.reduce((n, x) => n + x.lvl, 0);
-  const multi = st.items.filter(x => x.t.t.length > 1), single = st.items.filter(x => x.t.t.length === 1 && (!x.t.h || x.lvl));
+  const multi = st.items.filter(x => x.t.t.length > 1 && !x.t.s), single = st.items.filter(x => x.t.t.length === 1 && !x.t.s && (!x.t.h || x.lvl)), together = st.items.filter(x => x.t.s);
   $('#main').innerHTML = `
     <div class="box"><div class="stat"><div><b>${earned.length}</b><span>trophies earned</span></div><div><b>${levels}</b><span>levels reached</span></div><div><b>${fmtN(st.c.n)}</b><span>records saved</span></div></div>
-    <p class="note">Trophies are for records saved, and each has up to five levels. Tap one to see what it needs. A level, once reached, is kept even if records are deleted.</p>
-    ${S.metaFail ? '<p class="note err">Trophy history is not being saved. Publish the latest Firestore rules to fix this.</p>' : ''}</div>
+    <p class="note">These are your own trophies, counted from the records you saved yourself. Each has up to five levels. Tap one to see what it needs. A level, once reached, is kept even if records are deleted.</p>
+    ${S.peopleFail ? '<p class="note err">Trophy history is not being saved. Publish the latest Firestore rules to fix this.</p>' : ''}</div>
     <div class="box"><h3>Collection</h3><div class="trgrid">${multi.map(tcell).join('')}</div></div>
+    <div class="box"><h3>Together</h3><p class="note">Shared trophies. You both earn them when the household reaches them.</p><div class="trgrid">${together.map(tcell).join('')}</div></div>
     <div class="box"><h3>Special</h3><div class="trgrid">${single.map(tcell).join('')}</div></div>`;
 }
 
@@ -1269,12 +1331,12 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 13</div>
+      <div class="note">App version 15</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
 /* ---------- tabs ---------- */
-function renderTab() { ({ library: renderLibrary, stats: renderStats, wish: renderWish, trophies: renderTrophies, settings: renderSettings })[S.tab](); }
+function renderTab() { ({ library: renderLibrary, stats: renderStats, wish: renderWish, household: renderHousehold, trophies: renderTrophies, settings: renderSettings })[S.tab](); }
 function setTab(t) {
   S.tab = t; document.documentElement.dataset.tab = t;
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
@@ -1441,7 +1503,7 @@ async function discogsPick(i) {
     for (const k in o) if (o[k]) { if (k === 'cover' && S.draft.cover) continue; S.draft[k] = o[k]; const el = document.querySelector('#panel [data-f="' + k + '"]'); if (el) el.value = o[k]; }
     box.innerHTML = '<div class="note">Filled in from Discogs. Check the details, then save.</div>';
     const q = $('#sp-q'); if (q) q.value = (S.draft.artist + ' ' + S.draft.title).trim();
-    updateCoverPrev(); autoSpotify(S.draft);
+    updateCoverPrev(); updateDupNote(); autoSpotify(S.draft);
   } catch (e) { box.innerHTML = '<div class="note err">Could not get the details. Try again.</div>'; }
 }
 async function musicbrainzLookup(codes) {
@@ -1667,9 +1729,87 @@ async function wishDel() {
   try { await fb.F.deleteDoc(wref(r.id)); closeSheet(); toast('Removed'); } catch (e) { toast('Could not remove'); }
 }
 
+
+/* ====================================================================
+   Household. Everyone in it, with their favourites and theme.
+   ==================================================================== */
+function ensureMe() {
+  if (!S.user || S.meDone || !S.peopleReady) return; S.meDone = true;
+  const m = me();
+  const want = { uid: S.user.uid, name: S.user.displayName || (S.user.email || '').split('@')[0], email: emailOf(), photo: S.user.photoURL || '', lastSeen: Date.now() };
+  if (!m.theme) want.theme = S.theme; else if (m.theme !== S.theme) applyTheme(m.theme);
+  try { fb.F.setDoc(pref(S.user.uid), want, { merge: true }).catch(() => {}); } catch (e) {}
+}
+function saveMine(patch) {
+  let d = S.people.find(p => p.id === S.user.uid); if (!d) { d = { id: S.user.uid }; S.people.push(d); }
+  Object.assign(d, patch);
+  try { fb.F.setDoc(pref(S.user.uid), patch, { merge: true }).catch(() => toast('Could not save. Publish the latest Firestore rules.')); } catch (e) {}
+}
+const personName = p => p.nick || p.name || (p.email || '').split('@')[0] || 'Someone';
+function avatarHTML(p) {
+  return p.photo ? `<img class="av" referrerpolicy="no-referrer" src="${esc(p.photo)}" alt="" onerror="this.outerHTML='<div class=&quot;av&quot;>${esc(personName(p).charAt(0).toUpperCase())}</div>'">` : `<div class="av">${esc(personName(p).charAt(0).toUpperCase())}</div>`;
+}
+function renderHousehold() {
+  const people = S.people.filter(p => p.name || p.email).slice().sort((a, b) => (b.id === S.user.uid) - (a.id === S.user.uid) || personName(a).localeCompare(personName(b)));
+  if (!people.length) { $('#main').innerHTML = '<div class="empty">Loading the household</div>'; return; }
+  const cards = people.map(p => {
+    const mine = p.id === S.user.uid, recs = recsBy((p.email || '').toLowerCase()), st = trophyStateFor(recs, p);
+    const earned = st.items.filter(x => x.lvl > 0), levels = earned.reduce((n, x) => n + x.lvl, 0);
+    const th = THEMES.find(t => t.id === p.theme);
+    const ft = (p.favTrophies || []).map(id => st.by[id]).filter(x => x && x.lvl > 0);
+    const fv = (p.favVinyls || []).map(id => S.recs.find(r => r.id === id)).filter(Boolean);
+    return `<div class="box hh">
+      <div class="row" style="align-items:center">${avatarHTML(p)}<div class="grow"><b>${esc(personName(p))}${mine ? ' (you)' : ''}</b>
+        <div class="note">${p.nick && p.name ? esc(p.name) + ' · ' : ''}${fmtN(recs.length)} album${recs.length === 1 ? '' : 's'} added · ${earned.length} trophies · ${levels} levels</div></div>
+        ${th ? `<span class="tag" style="display:inline-flex;align-items:center;gap:6px"><span class="sw" style="width:14px;height:14px;border-radius:50%;background:${th.bg};border:2px solid ${th.acc};display:inline-block"></span>${esc(th.n)}</span>` : ''}</div>
+      <h4>Favourite trophies</h4>
+      ${ft.length ? `<div class="favrow">${ft.map(x => `<div class="favt">${trophySVG(x.t, x.lvl, 54)}<div>${esc(x.t.n)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
+      <h4>Favourite vinyls</h4>
+      ${fv.length ? `<div class="favrow">${fv.map(r => `<div class="favv" data-open="${esc(r.id)}">${r.cover ? `<img class="cov" style="width:72px;height:72px" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="cov" style="width:72px;height:72px"></div>'}<div class="note">${esc(r.title)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
+      ${mine ? `<label>Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">` : ''}
+      ${mine ? '<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button><button class="btn ghost small" data-act="themes">Change theme</button></div>' : ''}
+    </div>`;
+  }).join('');
+  $('#main').innerHTML = (S.peopleFail ? '<p class="note err">The household could not be loaded. Publish the latest Firestore rules.</p>' : '') + cards + '<p class="note">People appear here after they sign in to Musicbox once.</p>';
+}
+function openFavTrophies() {
+  const st = trophyState(), earned = st.items.filter(x => x.lvl > 0), sel = me().favTrophies || [];
+  openSheet(`<div class="row"><h3 class="grow">Favourite trophies</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="note">Pick up to three. They show on your household card.</div>
+    <div class="trgrid" style="margin-top:12px">${earned.length ? earned.map(x => `<button class="tcell ${sel.includes(x.t.id) ? 'on' : ''}" data-ft="${x.t.id}" style="${sel.includes(x.t.id) ? 'outline:2px solid var(--acc)' : ''}">${trophySVG(x.t, x.lvl, 56)}<b>${esc(x.t.n)}</b><span>${sel.includes(x.t.id) ? 'Picked' : (x.t.t.length > 1 ? MET[x.lvl - 1] : 'Earned')}</span></button>`).join('') : '<div class="empty">No trophies yet.</div>'}</div>
+    <button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+}
+function toggleFavTrophy(id) {
+  const cur = (me().favTrophies || []).slice(), i = cur.indexOf(id);
+  if (i >= 0) cur.splice(i, 1); else { if (cur.length >= 3) { toast('Three is the limit. Tap one to swap it out.'); return; } cur.push(id); }
+  saveMine({ favTrophies: cur }); openFavTrophies();
+}
+function favVinylList(q) {
+  const sel = me().favVinyls || [], nq = norm(q);
+  let pool = S.recs.filter(r => !nq || norm([r.artist, r.title].join(' ')).includes(nq));
+  pool.sort((a, b) => (sel.includes(b.id) - sel.includes(a.id)) || norm(a.artist).localeCompare(norm(b.artist)) || norm(a.title).localeCompare(norm(b.title)));
+  return pool.slice(0, 30).map(r => `<button class="res" data-fv="${esc(r.id)}">${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}<div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span></div>${sel.includes(r.id) ? '<span class="tag ok">Favourite</span>' : ''}</button>`).join('') || '<div class="note">Nothing matches.</div>';
+}
+function openFavVinyls() {
+  openSheet(`<div class="row"><h3 class="grow">Favourite vinyls</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="note">Pick up to five. They show on your household card.</div>
+    <input id="fv-q" type="search" placeholder="Search your collection" autocomplete="off" style="margin-top:10px"><div id="fv-list">${favVinylList('')}</div>
+    <button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+}
+function toggleFavVinyl(id) {
+  const cur = (me().favVinyls || []).slice(), i = cur.indexOf(id);
+  if (i >= 0) cur.splice(i, 1); else { if (cur.length >= 5) { toast('Five is the limit. Tap one to swap it out.'); return; } cur.push(id); }
+  saveMine({ favVinyls: cur });
+  const l = $('#fv-list'); if (l) l.innerHTML = favVinylList((($('#fv-q') || {}).value) || '');
+}
+function openThemes() {
+  openSheet(`<div class="row"><h3 class="grow">Theme</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div id="theme-grid">${themeGridHTML()}</div><button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+}
+
 const seenKey = () => 'musicbox_seen_' + (S.user ? S.user.uid : '');
 const byMe = r => (r.addedBy || '').toLowerCase() === (S.user.email || '').toLowerCase();
-const adderName = r => r.addedByName || (r.addedBy || 'Someone').split('@')[0];
+const adderName = r => { const p = S.people.find(x => (x.email || '') === (r.addedBy || '').toLowerCase()); return p ? personName(p) : (r.addedByName || (r.addedBy || 'Someone').split('@')[0]); };
 function theirRecs() { return S.recs.filter(r => r.addedBy && !byMe(r) && r.addedAt).sort((a, b) => b.addedAt - a.addedAt); }
 function updateBell() {
   const b = $('#bellN'); if (!b || !S.user || !S.recsReady) return;
@@ -1720,7 +1860,7 @@ function onClickInner(e) {
   }
   if (t.closest('a.play')) return;
   const tab = t.closest('button[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
-  const th = t.closest('[data-theme-id]'); if (th) { applyTheme(th.dataset.themeId); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); return; }
+  const th = t.closest('[data-theme-id]'); if (th) { applyTheme(th.dataset.themeId); if (S.user && fb) saveMine({ theme: th.dataset.themeId }); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); return; }
   const vw = t.closest('[data-view]'); if (vw) { S.view = vw.dataset.view; lset('musicbox_view', S.view); renderLibrary(); return; }
   const pg = t.closest('[data-pg]'); if (pg) { S.page += +pg.dataset.pg; renderLibraryList(); toListTop(); return; }
   const tr = t.closest('[data-trophy]'); if (tr) { showTrophy(tr.dataset.trophy); return; }
@@ -1729,6 +1869,8 @@ function onClickInner(e) {
   const wc = t.closest('[data-wc]'); if (wc) { wishPick(+wc.dataset.wc); return; }
   const wa = t.closest('[data-wadd]'); if (wa) { wishAdd(wa.dataset.wadd); return; }
   const wo = t.closest('[data-wopen]'); if (wo) { openWish(wo.dataset.wopen); return; }
+  const ft = t.closest('[data-ft]'); if (ft) { toggleFavTrophy(ft.dataset.ft); return; }
+  const fv = t.closest('[data-fv]'); if (fv) { toggleFavVinyl(fv.dataset.fv); return; }
   const dp = t.closest('[data-dpick]'); if (dp) { discogsPick(+dp.dataset.dpick); return; }
   const open = t.closest('[data-open]'); if (open) { openRecord(open.dataset.open); return; }
   const b = t.closest('[data-act]'); if (!b) return;
@@ -1739,6 +1881,9 @@ function onClickInner(e) {
   else if (act === 'spin') openSpin(false);
   else if (act === 'spin-again') openSpin(true);
   else if (act === 'bell') openBell();
+  else if (act === 'fav-trophies') openFavTrophies();
+  else if (act === 'fav-vinyls') openFavVinyls();
+  else if (act === 'themes') openThemes();
   else if (act === 'cov-clear') { if (S.draft) { S.draft.cover = ''; updateCoverPrev(); } }
   else if (act === 'wish-search') wishSearch();
   else if (act === 'wd-back') { if (S.wd && S.wd.list) { S.wd = { phase: 'cands', list: S.wd.list, errs: [] }; } else S.wd = null; refreshWish(); }
@@ -1770,11 +1915,12 @@ function onClickInner(e) {
 document.addEventListener('change', e => {
   const t = e.target;
   if (t.id === 'sort') { S.sort = t.value; S.page = 0; renderLibraryList(); }
+  else if (t.id === 'nick') { saveMine({ nick: t.value.trim().slice(0, 20) }); toast('Saved'); }
   else if (t.id === 'csv' && t.files[0]) importCSV(t.files[0]);
   else if (t.id === 'cov-file' && t.files[0]) { photoToCover(t.files[0]).then(u => { if (S.draft) { S.draft.cover = u; updateCoverPrev(); toast('Cover added. Save to keep it.'); } }).catch(() => toast('Could not read that picture')); }
   else if (t.matches && t.matches('[data-pp]')) { S.pp = +t.value || 50; lset('musicbox_pp', String(S.pp)); S.page = 0; if (S.tab === 'library') renderLibraryList(); }
 });
-document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; S.page = 0; renderLibraryList(); } });
+document.addEventListener('input', e => { if (e.target.dataset && ['artist', 'title', 'barcode'].includes(e.target.dataset.f) && e.target.closest('#panel')) updateDupNote(); if (e.target.id === 'fv-q') { const l = $('#fv-list'); if (l) l.innerHTML = favVinylList(e.target.value); return; } if (e.target.id === 'q') { S.q = e.target.value; S.page = 0; renderLibraryList(); } });
 document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && e.target.id === 'scan-code') { e.preventDefault(); lookupBarcode(e.target.value); }
   if (e.key === 'Enter' && e.target.id === 'wq') { e.preventDefault(); wishSearch(); }
