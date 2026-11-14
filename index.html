@@ -1,0 +1,609 @@
+<!doctype html>
+<html lang="en-IE">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#15120f">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Musicbox">
+<meta name="robots" content="noindex,nofollow">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<title>Musicbox</title>
+<style>
+:root{--bg:#15120f;--card:#1f1b17;--line:#352e27;--txt:#f3ece3;--dim:#a39a8e;--acc:#e0a84b;--green:#1db954;--red:#e5604f}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--txt);font:16px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+.hide{display:none!important}
+.center{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
+.center h1{margin:0;font-size:34px;letter-spacing:.5px}
+.center p{margin:0;color:var(--dim);max-width:340px}
+.btn{background:var(--acc);color:#1b1408;border:0;border-radius:12px;padding:12px 18px;font-weight:600;min-height:44px}
+.btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
+.btn.green{background:var(--green);color:#04210e}
+.btn.red{background:transparent;color:var(--red);border:1px solid var(--red)}
+.btn.small{padding:8px 12px;min-height:36px;font-size:14px}
+.btn:disabled{opacity:.5}
+header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line)}
+.row{display:flex;gap:8px;align-items:center}
+.row.wrap{flex-wrap:wrap}
+.grow{flex:1;min-width:0}
+h2{margin:0;font-size:22px}
+.count{color:var(--dim);font-size:13px}
+input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:11px 12px;min-height:44px}
+textarea{min-height:80px;resize:vertical}
+label{display:block;font-size:13px;color:var(--dim);margin:10px 0 4px}
+.chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:6px 12px;font-size:14px;white-space:nowrap}
+.chip.on{background:var(--acc);color:#1b1408;border-color:var(--acc)}
+.icon{background:transparent;border:1px solid var(--line);border-radius:10px;width:44px;height:44px;font-size:20px;flex:none}
+#list{padding:6px 14px 110px}
+.item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+.cov{width:56px;height:56px;border-radius:6px;flex:none;object-fit:cover;background:radial-gradient(circle,#15120f 0 9%,#2a241e 10% 34%,#15120f 35% 38%,#2a241e 39% 100%)}
+.meta{flex:1;min-width:0}
+.meta b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.meta span{display:block;color:var(--dim);font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tag{font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--dim)}
+.tag.ok{color:var(--green);border-color:var(--green)}
+a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#04210e;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px;flex:none}
+.empty{color:var(--dim);text-align:center;padding:40px 10px}
+.fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--acc);color:#1b1408;font-size:30px;box-shadow:0 4px 14px #0008;z-index:6}
+#sheet{position:fixed;inset:0;background:#000a;z-index:20;display:flex;align-items:flex-end}
+.panel{background:var(--bg);border-radius:18px 18px 0 0;max-height:94vh;width:100%;overflow:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.panel h3{margin:0 0 4px;font-size:20px}
+.sec{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
+.res{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:8px;margin-top:8px}
+.res .cov{width:48px;height:48px}
+.res .meta b{white-space:normal}
+.best{color:var(--green);font-size:12px}
+.note{color:var(--dim);font-size:13px;margin:6px 0}
+.err{color:var(--red)}
+code{background:var(--card);padding:2px 6px;border-radius:6px;word-break:break-all;font-size:13px}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:#2b251f;border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:40;max-width:90vw;text-align:center}
+.bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--acc);width:0}
+</style>
+</head>
+<body>
+
+<div id="loading" class="center"><h1>Musicbox</h1><p>Loading</p></div>
+
+<div id="login" class="center hide">
+  <h1>Musicbox</h1>
+  <p>Our record collection, linked to Spotify. Private to the two of us.</p>
+  <button class="btn" id="btn-signin">Sign in with Google</button>
+  <p id="login-err" class="err"></p>
+</div>
+
+<div id="denied" class="center hide">
+  <h1>Not allowed yet</h1>
+  <p>This account has no access to the collection. Send this account ID to the owner to be added.</p>
+  <p><code id="denied-uid"></code></p>
+  <button class="btn ghost" id="btn-copy-uid">Copy account ID</button>
+  <button class="btn ghost" data-act="signout">Sign out</button>
+</div>
+
+<div id="app" class="hide">
+  <header>
+    <div class="row">
+      <div class="grow"><h2>Musicbox</h2><div class="count" id="count"></div></div>
+      <button class="icon" data-act="settings" aria-label="Settings">&#9881;</button>
+    </div>
+    <div style="margin-top:8px"><input id="q" type="search" placeholder="Search artist, title, label" autocomplete="off"></div>
+    <div class="chips" id="chips"></div>
+  </header>
+  <div id="list"></div>
+  <button class="fab" data-act="add" aria-label="Add a record">+</button>
+</div>
+
+<div id="sheet" class="hide"><div class="panel" id="panel"></div></div>
+<div id="toast" class="hide"></div>
+
+<script type="module">
+/* ====================================================================
+   SETTINGS. The only thing you need to change is the Spotify client ID.
+   ==================================================================== */
+const SPOTIFY_CLIENT_ID = 'PASTE_SPOTIFY_CLIENT_ID_HERE';
+
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCgVHwUEbDsp_DiyAWbIaHW7b5LS7MRwNM",
+  authDomain: "shelf-b5282.firebaseapp.com",
+  projectId: "shelf-b5282",
+  storageBucket: "shelf-b5282.firebasestorage.app",
+  messagingSenderId: "137353564152",
+  appId: "1:137353564152:web:5e78fb7a5d32cc5342d00d"
+};
+const FB_VER = '10.14.1';
+const COLLECTION = 'vinyl';
+/* ==================================================================== */
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const S = { user: null, recs: [], q: '', filter: 'all', sort: 'artist', draft: null, results: [], matching: false, stop: false };
+
+/* ---------- toast ---------- */
+let toastT;
+function toast(msg, ms = 3200) {
+  const t = $('#toast'); t.textContent = msg; t.classList.remove('hide');
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.add('hide'), ms);
+}
+
+/* ---------- text helpers ---------- */
+function norm(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '')
+    .replace(/\(.*?\)|\[.*?\]/g, ' ').replace(/&/g, ' and ').replace(/[^a-z0-9]+/g, ' ').trim().replace(/^the /, '');
+}
+function cleanArtist(a) { return String(a || '').replace(/\s*\(\d+\)\s*$/, '').trim(); }
+
+function parseCSV(text) {
+  text = text.replace(/^﻿/, '');
+  const rows = []; let row = [], f = '', q = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (q) {
+      if (c === '"') { if (text[i + 1] === '"') { f += '"'; i++; } else q = false; }
+      else f += c;
+    } else if (c === '"') q = true;
+    else if (c === ',') { row.push(f); f = ''; }
+    else if (c === '\n' || c === '\r') { if (c === '\r' && text[i + 1] === '\n') i++; row.push(f); f = ''; rows.push(row); row = []; }
+    else f += c;
+  }
+  if (f !== '' || row.length) { row.push(f); rows.push(row); }
+  return rows.filter(r => r.some(x => x !== ''));
+}
+
+/* ---------- matching ---------- */
+function scoreMatch(rec, a) {
+  const t1 = norm(rec.title), t2 = norm(a.name);
+  if (!t1 || !t2) return 0;
+  const titleScore = t1 === t2 ? 2 : (t1.includes(t2) || t2.includes(t1)) ? 1 : 0;
+  if (!titleScore) return 0;
+  const ar = norm(rec.artist);
+  let artistOk = !ar || ar === 'various' || ar === 'various artists';
+  if (!artistOk) artistOk = a.artists.some(x => { const n = norm(x); return n && (n === ar || n.includes(ar) || ar.includes(n)); });
+  return artistOk ? titleScore : 0;
+}
+function rank(rec, list) {
+  return list.map(a => ({ ...a, score: scoreMatch(rec, a) }))
+    .sort((x, y) => y.score - x.score || (x.type === 'album' ? 0 : 1) - (y.type === 'album' ? 0 : 1));
+}
+
+/* ====================================================================
+   Spotify (PKCE sign in, no secret needed)
+   ==================================================================== */
+const SP = {
+  redirect: location.origin + location.pathname.replace(/index\.html$/, ''),
+  K: { tok: 'vinyl_sp_tok', ver: 'vinyl_sp_ver', state: 'vinyl_sp_state' },
+  configured: () => !/PASTE/i.test(SPOTIFY_CLIENT_ID),
+  tok() { try { return JSON.parse(localStorage.getItem(this.K.tok) || 'null'); } catch (e) { return null; } },
+  save(t) { localStorage.setItem(this.K.tok, JSON.stringify(t)); },
+  clear() { localStorage.removeItem(this.K.tok); }
+};
+const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const rand = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
+
+async function spConnect() {
+  if (!SP.configured()) { toast('Add the Spotify client ID at the top of index.html first'); return; }
+  const ver = rand(48), state = rand(16);
+  localStorage.setItem(SP.K.ver, ver); localStorage.setItem(SP.K.state, state);
+  const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver)));
+  const u = new URL('https://accounts.spotify.com/authorize');
+  u.search = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP.redirect, code_challenge_method: 'S256', code_challenge: challenge, state }).toString();
+  location.href = u.toString();
+}
+async function spTokenRequest(params) {
+  const r = await fetch('https://accounts.spotify.com/api/token', {
+    method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, ...params }).toString()
+  });
+  if (!r.ok) throw new Error('token ' + r.status);
+  return r.json();
+}
+async function spHandleRedirect() {
+  const p = new URLSearchParams(location.search);
+  if (!p.has('code') && !p.has('error')) return;
+  const code = p.get('code'), state = p.get('state'), err = p.get('error');
+  history.replaceState(null, '', location.pathname);
+  if (err) { S.pendingToast = 'Spotify sign in was cancelled'; return; }
+  if (!state || state !== localStorage.getItem(SP.K.state)) { S.pendingToast = 'Spotify sign in could not be verified'; return; }
+  try {
+    const j = await spTokenRequest({ grant_type: 'authorization_code', code, redirect_uri: SP.redirect, code_verifier: localStorage.getItem(SP.K.ver) || '' });
+    SP.save({ access: j.access_token, refresh: j.refresh_token, exp: Date.now() + j.expires_in * 1000 });
+    S.pendingToast = 'Spotify connected';
+  } catch (e) { S.pendingToast = 'Spotify sign in failed'; }
+  localStorage.removeItem(SP.K.ver); localStorage.removeItem(SP.K.state);
+}
+async function spToken(force) {
+  const t = SP.tok(); if (!t) return null;
+  if (!force && Date.now() < t.exp - 60000) return t.access;
+  if (!t.refresh) { SP.clear(); return null; }
+  try {
+    const j = await spTokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh });
+    const n = { access: j.access_token, refresh: j.refresh_token || t.refresh, exp: Date.now() + j.expires_in * 1000 };
+    SP.save(n); return n.access;
+  } catch (e) { SP.clear(); return null; }
+}
+async function spSearch(q) {
+  let tk = await spToken(); if (!tk) throw new Error('NOSP');
+  let refreshed = false;
+  for (let i = 0; i < 4; i++) {
+    const r = await fetch('https://api.spotify.com/v1/search?' + new URLSearchParams({ q, type: 'album', limit: '10' }), { headers: { Authorization: 'Bearer ' + tk } });
+    if (r.status === 429) { await sleep((+r.headers.get('retry-after') || 2) * 1000 + 300); continue; }
+    if (r.status === 401 && !refreshed) { refreshed = true; tk = await spToken(true); if (!tk) throw new Error('NOSP'); continue; }
+    if (!r.ok) throw new Error('SP' + r.status);
+    const j = await r.json();
+    return ((j.albums && j.albums.items) || []).filter(Boolean).map(a => ({
+      id: a.id, name: a.name || '', type: a.album_type || '',
+      artists: (a.artists || []).map(x => x.name),
+      year: String(a.release_date || '').slice(0, 4),
+      cover: (a.images && (a.images[1] || a.images[0]) || {}).url || ''
+    }));
+  }
+  throw new Error('SP429');
+}
+function spErrorText(e) {
+  const m = e && e.message;
+  if (m === 'NOSP') return 'Connect Spotify first (Settings).';
+  if (m === 'SP403') return 'Spotify refused the request. Your Spotify account must be added under User Management in the Spotify developer dashboard, and the app owner needs Premium.';
+  if (m === 'SP429') return 'Spotify is rate limiting. Try again in a minute.';
+  return 'Spotify search failed. Check your connection and try again.';
+}
+
+/* ====================================================================
+   Firebase
+   ==================================================================== */
+let fb = null, unsub = null;
+async function fbInit() {
+  const base = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
+  const [appM, authM, fsM] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
+  const app = appM.initializeApp(FIREBASE_CONFIG);
+  const auth = authM.getAuth(app);
+  let db;
+  try { db = fsM.initializeFirestore(app, { localCache: fsM.persistentLocalCache({ tabManager: fsM.persistentMultipleTabManager() }) }); }
+  catch (e) { db = fsM.getFirestore(app); }
+  fb = { auth, db, A: authM, F: fsM };
+}
+const col = () => fb.F.collection(fb.db, COLLECTION);
+const ref = id => fb.F.doc(fb.db, COLLECTION, id);
+
+function show(view) {
+  for (const v of ['loading', 'login', 'denied', 'app']) $('#' + v).classList.toggle('hide', v !== view);
+}
+function startListening() {
+  if (unsub) unsub();
+  unsub = fb.F.onSnapshot(col(), snap => {
+    S.recs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    show('app'); renderList();
+  }, err => {
+    if (err && err.code === 'permission-denied') {
+      $('#denied-uid').textContent = S.user.uid; show('denied');
+    } else { show('app'); toast('Could not load the collection'); }
+  });
+}
+
+/* ====================================================================
+   List
+   ==================================================================== */
+const CHIPS = [['all', 'All'], ['linked', 'Linked'], ['unlinked', 'Not linked']];
+function renderChips() {
+  $('#chips').innerHTML = CHIPS.map(([k, l]) => `<button class="chip ${S.filter === k ? 'on' : ''}" data-chip="${k}">${l}</button>`).join('') +
+    `<select id="sort" style="width:auto;min-height:34px;padding:4px 8px;border-radius:999px">
+      <option value="artist"${S.sort === 'artist' ? ' selected' : ''}>Artist</option>
+      <option value="title"${S.sort === 'title' ? ' selected' : ''}>Title</option>
+      <option value="year"${S.sort === 'year' ? ' selected' : ''}>Year</option>
+      <option value="added"${S.sort === 'added' ? ' selected' : ''}>Recently added</option></select>`;
+}
+function visibleRecs() {
+  const q = norm(S.q);
+  let a = S.recs.filter(r => {
+    if (S.filter === 'linked' && !r.spotifyId) return false;
+    if (S.filter === 'unlinked' && r.spotifyId) return false;
+    if (!q) return true;
+    return norm([r.artist, r.title, r.label, r.catno, r.pressing, r.notes].join(' ')).includes(q);
+  });
+  const by = {
+    artist: (x, y) => norm(x.artist).localeCompare(norm(y.artist)) || (+x.year || 0) - (+y.year || 0) || norm(x.title).localeCompare(norm(y.title)),
+    title: (x, y) => norm(x.title).localeCompare(norm(y.title)),
+    year: (x, y) => (+x.year || 9999) - (+y.year || 9999),
+    added: (x, y) => (y.addedAt || 0) - (x.addedAt || 0)
+  }[S.sort];
+  return a.sort(by);
+}
+function renderList() {
+  const linked = S.recs.filter(r => r.spotifyId).length;
+  $('#count').textContent = S.recs.length ? `${S.recs.length} records, ${linked} linked to Spotify` : 'No records yet';
+  const a = visibleRecs();
+  if (!a.length) {
+    $('#list').innerHTML = `<div class="empty">${S.recs.length ? 'Nothing matches.' : 'Tap + to add a record, or import your Discogs collection in Settings.'}</div>`;
+    return;
+  }
+  $('#list').innerHTML = a.map(r => `
+    <div class="item" data-open="${esc(r.id)}">
+      ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
+      <div class="meta">
+        <b>${esc(r.title)}</b>
+        <span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span>
+        <span>${r.spotifyId ? '<span class="tag ok" style="display:inline">Linked</span>' : '<span class="tag" style="display:inline">Not linked</span>'}${r.pressing ? ' ' + esc(r.pressing) : ''}</span>
+      </div>
+      ${r.spotifyId ? `<a class="play" href="https://open.spotify.com/album/${esc(r.spotifyId)}" target="_blank" rel="noopener" aria-label="Open in Spotify">&#9654;</a>` : ''}
+    </div>`).join('');
+}
+
+/* ====================================================================
+   Sheets
+   ==================================================================== */
+const GRADES = ['', 'Mint (M)', 'Near Mint (NM)', 'Very Good Plus (VG+)', 'Very Good (VG)', 'Good Plus (G+)', 'Good (G)', 'Fair (F)', 'Poor (P)'];
+function openSheet(html) { $('#panel').innerHTML = html; $('#sheet').classList.remove('hide'); document.body.style.overflow = 'hidden'; }
+function closeSheet() { $('#sheet').classList.add('hide'); document.body.style.overflow = ''; S.draft = null; S.results = []; }
+
+function fieldHTML(k, label, v, type) {
+  return `<label>${label}</label><input data-f="${k}" type="${type || 'text'}" value="${esc(v)}"${type === 'number' ? ' inputmode="numeric"' : ''}>`;
+}
+function gradeHTML(k, label, v) {
+  return `<label>${label}</label><select data-f="${k}">${GRADES.map(g => `<option${g === (v || '') ? ' selected' : ''}>${esc(g)}</option>`).join('')}</select>`;
+}
+function spCurrentHTML() {
+  const d = S.draft;
+  if (!d.spotifyId) return '<div class="note">Not linked to a Spotify album yet.</div>';
+  return `<div class="res" style="cursor:default">${d.cover ? `<img class="cov" referrerpolicy="no-referrer" src="${esc(d.cover)}" alt="">` : '<div class="cov"></div>'}
+    <div class="meta"><b>${esc(d.spotifyName || 'Linked album')}</b><span>${esc(d.spotifyArtist || '')}</span></div></div>
+    <div class="row wrap" style="margin-top:8px">
+      <a class="btn green small" style="text-decoration:none;display:inline-flex;align-items:center" href="https://open.spotify.com/album/${esc(d.spotifyId)}" target="_blank" rel="noopener">Open in Spotify</a>
+      <button class="btn ghost small" data-act="unlink">Unlink</button></div>`;
+}
+function openRecord(id) {
+  const r = id ? S.recs.find(x => x.id === id) : null;
+  S.draft = r ? { ...r } : { artist: '', title: '', copies: 1 };
+  S.results = [];
+  const d = S.draft;
+  openSheet(`
+    <div class="row"><h3 class="grow">${r ? 'Edit record' : 'Add a record'}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    ${fieldHTML('artist', 'Artist', d.artist)}
+    ${fieldHTML('title', 'Title', d.title)}
+    <div class="row"><div class="grow">${fieldHTML('year', 'Year', d.year, 'number')}</div><div class="grow">${fieldHTML('copies', 'Copies', d.copies || 1, 'number')}</div></div>
+    ${fieldHTML('label', 'Label', d.label)}
+    ${fieldHTML('catno', 'Catalogue number', d.catno)}
+    ${fieldHTML('format', 'Format', d.format)}
+    ${fieldHTML('pressing', 'Pressing or colour', d.pressing)}
+    ${gradeHTML('mediaCond', 'Record condition', d.mediaCond)}
+    ${gradeHTML('sleeveCond', 'Sleeve condition', d.sleeveCond)}
+    <label>Notes</label><textarea data-f="notes">${esc(d.notes)}</textarea>
+    <div class="sec">
+      <b>Spotify album</b>
+      <div id="sp-cur">${spCurrentHTML()}</div>
+      <div class="row" style="margin-top:10px"><input id="sp-q" placeholder="Search Spotify" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="sp-search">Search</button></div>
+      <div id="sp-res"></div>
+    </div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn grow" data-act="save">Save</button>
+      ${r ? '<button class="btn red" data-act="delete">Delete</button>' : ''}
+    </div>`);
+}
+function collectDraft() {
+  document.querySelectorAll('#panel [data-f]').forEach(el => { S.draft[el.dataset.f] = el.value.trim(); });
+  S.draft.year = S.draft.year ? String(S.draft.year).slice(0, 4) : '';
+  S.draft.copies = Math.max(1, parseInt(S.draft.copies, 10) || 1);
+}
+async function saveDraft() {
+  collectDraft();
+  const d = S.draft;
+  if (!d.artist || !d.title) { toast('Artist and title are needed'); return; }
+  const now = Date.now();
+  const data = {
+    artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', format: d.format || '',
+    pressing: d.pressing || '', mediaCond: d.mediaCond || '', sleeveCond: d.sleeveCond || '', notes: d.notes || '',
+    spotifyId: d.spotifyId || '', spotifyName: d.spotifyName || '', spotifyArtist: d.spotifyArtist || '', cover: d.cover || '',
+    discogsId: d.discogsId || '', updatedAt: now
+  };
+  try {
+    if (d.id) await fb.F.updateDoc(ref(d.id), data);
+    else await fb.F.addDoc(col(), { ...data, addedAt: now, addedBy: S.user.email || '' });
+    closeSheet(); toast('Saved');
+  } catch (e) { toast('Could not save. Check your connection.'); }
+}
+async function deleteDraft() {
+  const d = S.draft; if (!d || !d.id) return;
+  if (!confirm(`Delete "${d.title}" by ${d.artist}?`)) return;
+  try { await fb.F.deleteDoc(ref(d.id)); closeSheet(); toast('Deleted'); } catch (e) { toast('Could not delete'); }
+}
+
+async function sheetSearch() {
+  const q = ($('#sp-q').value || '').trim(); if (!q) return;
+  const box = $('#sp-res'); box.innerHTML = '<div class="note">Searching</div>';
+  try {
+    collectDraft();
+    const res = await spSearch(q);
+    S.results = rank(S.draft, res);
+    if (!S.results.length) { box.innerHTML = '<div class="note">No albums found. Try fewer words.</div>'; return; }
+    box.innerHTML = S.results.map((a, i) => `
+      <button class="res" data-pick="${i}">
+        ${a.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(a.cover)}" alt="">` : '<div class="cov"></div>'}
+        <div class="meta"><b>${esc(a.name)}</b><span>${esc(a.artists.join(', '))}${a.year ? ' · ' + esc(a.year) : ''}${a.type && a.type !== 'album' ? ' · ' + esc(a.type) : ''}</span>${a.score === 2 && i === 0 ? '<span class="best">Best match</span>' : ''}</div>
+      </button>`).join('');
+  } catch (e) {
+    box.innerHTML = `<div class="note err">${esc(spErrorText(e))}</div>` + (e.message === 'NOSP' ? '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>' : '');
+  }
+}
+async function pickResult(i) {
+  const a = S.results[i]; if (!a) return;
+  Object.assign(S.draft, { spotifyId: a.id, spotifyName: a.name, spotifyArtist: a.artists.join(', '), cover: a.cover });
+  $('#sp-cur').innerHTML = spCurrentHTML(); $('#sp-res').innerHTML = '';
+  if (S.draft.id) {
+    try { await fb.F.updateDoc(ref(S.draft.id), { spotifyId: a.id, spotifyName: S.draft.spotifyName, spotifyArtist: S.draft.spotifyArtist, cover: a.cover, updatedAt: Date.now() }); toast('Linked'); }
+    catch (e) { toast('Could not save the link'); }
+  } else toast('Linked. Save the record to keep it.');
+}
+async function unlinkDraft() {
+  Object.assign(S.draft, { spotifyId: '', spotifyName: '', spotifyArtist: '', cover: '' });
+  $('#sp-cur').innerHTML = spCurrentHTML();
+  if (S.draft.id) { try { await fb.F.updateDoc(ref(S.draft.id), { spotifyId: '', spotifyName: '', spotifyArtist: '', cover: '', updatedAt: Date.now() }); toast('Unlinked'); } catch (e) { toast('Could not unlink'); } }
+}
+
+/* ---------- settings ---------- */
+function openSettings() {
+  const connected = !!SP.tok();
+  const unlinked = S.recs.filter(r => !r.spotifyId).length;
+  openSheet(`
+    <div class="row"><h3 class="grow">Settings</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="note">Signed in as ${esc(S.user.email || '')}</div>
+    <div class="sec"><b>Spotify</b>
+      <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
+      <div class="row wrap">
+        ${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}
+      </div>
+      <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div>
+    </div>
+    <div class="sec"><b>Match with Spotify</b>
+      <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly. Close matches are left for you to check by hand.</div>
+      <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
+      <div id="prog" class="note"></div><div class="bar hide" id="bar"><i></i></div>
+    </div>
+    <div class="sec"><b>Import from Discogs</b>
+      <div class="note">In Discogs, open your collection, choose Export, and download the CSV. Then pick the file here. Records already imported are skipped.</div>
+      <input type="file" id="csv" accept=".csv,text/csv">
+      <div id="imp" class="note"></div>
+    </div>
+    <div class="sec"><b>Backup</b>
+      <div class="row wrap"><button class="btn ghost small" data-act="export">Download JSON backup</button></div>
+    </div>
+    <div class="sec"><b>Account</b>
+      <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
+      <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div>
+    </div>`);
+}
+
+async function importCSV(file) {
+  const out = $('#imp'); out.textContent = 'Reading file';
+  try {
+    const rows = parseCSV(await file.text());
+    if (rows.length < 2) { out.textContent = 'The file looks empty.'; return; }
+    const head = rows[0].map(h => h.trim().toLowerCase());
+    const ix = n => head.indexOf(n);
+    const I = { artist: ix('artist'), title: ix('title'), label: ix('label'), cat: ix('catalog#'), fmt: ix('format'), rel: ix('released'), id: ix('release_id'), mc: ix('collection media condition'), sc: ix('collection sleeve condition'), notes: ix('collection notes') };
+    if (I.artist < 0 || I.title < 0) { out.textContent = 'This does not look like a Discogs collection export (no Artist and Title columns).'; return; }
+    const get = (r, i) => (i >= 0 && r[i] != null ? r[i].trim() : '');
+    const byId = new Map(); let manual = 0;
+    for (const r of rows.slice(1)) {
+      const rid = get(r, I.id);
+      const key = rid || 'x' + (manual++);
+      if (byId.has(key)) { byId.get(key).copies++; continue; }
+      const grade = v => GRADES.find(g => g && v && g.split(' (')[0].toLowerCase() === v.split(' (')[0].toLowerCase()) || '';
+      byId.set(key, {
+        artist: cleanArtist(get(r, I.artist)), title: get(r, I.title), year: (get(r, I.rel).match(/\d{4}/) || [''])[0],
+        label: get(r, I.label), catno: get(r, I.cat), format: get(r, I.fmt), pressing: '',
+        mediaCond: grade(get(r, I.mc)), sleeveCond: grade(get(r, I.sc)), notes: get(r, I.notes), copies: 1, discogsId: rid
+      });
+    }
+    const have = new Set(S.recs.map(r => r.discogsId).filter(Boolean));
+    const fresh = [...byId.values()].filter(x => x.artist && x.title && !(x.discogsId && have.has(x.discogsId)));
+    if (!fresh.length) { out.textContent = 'Nothing new to import.'; return; }
+    const now = Date.now(); let done = 0;
+    for (let i = 0; i < fresh.length; i += 400) {
+      const batch = fb.F.writeBatch(fb.db);
+      fresh.slice(i, i + 400).forEach(x => {
+        const id = x.discogsId ? 'd' + x.discogsId : undefined;
+        const docRef = id ? ref(id) : fb.F.doc(col());
+        batch.set(docRef, { ...x, spotifyId: '', spotifyName: '', spotifyArtist: '', cover: '', addedAt: now, updatedAt: now, addedBy: S.user.email || '' });
+      });
+      await batch.commit(); done = Math.min(fresh.length, i + 400); out.textContent = `Imported ${done} of ${fresh.length}`;
+    }
+    out.textContent = `Imported ${fresh.length} records. Now use Match all to link them to Spotify.`;
+  } catch (e) { out.textContent = 'Import failed. Check the file and your connection.'; }
+}
+
+async function matchAll() {
+  const todo = S.recs.filter(r => !r.spotifyId);
+  if (!todo.length) return;
+  S.matching = true; S.stop = false;
+  const prog = () => $('#prog'), bar = () => $('#bar');
+  if ($('#match-stop')) $('#match-stop').classList.remove('hide');
+  if (bar()) bar().classList.remove('hide');
+  let linked = 0, n = 0, failed = '';
+  for (const r of todo) {
+    if (S.stop) break;
+    n++;
+    if (prog()) { prog().textContent = `Matching ${n} of ${todo.length}. Linked ${linked}.`; bar().firstElementChild.style.width = (n / todo.length * 100) + '%'; }
+    try {
+      const best = rank(r, await spSearch(`${r.artist} ${r.title}`))[0];
+      if (best && best.score === 2) {
+        await fb.F.updateDoc(ref(r.id), { spotifyId: best.id, spotifyName: best.name, spotifyArtist: best.artists.join(', '), cover: best.cover, updatedAt: Date.now() });
+        linked++;
+      }
+    } catch (e) { failed = spErrorText(e); break; }
+    await sleep(250);
+  }
+  S.matching = false;
+  if (prog()) prog().textContent = (failed ? failed + ' ' : '') + `Linked ${linked} of ${todo.length}. ${todo.length - linked} left for you to check by hand (filter: Not linked).`;
+  if ($('#match-stop')) $('#match-stop').classList.add('hide');
+}
+
+function exportJSON() {
+  const data = S.recs.map(({ id, ...r }) => ({ id, ...r }));
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'musicbox-backup-' + new Date().toISOString().slice(0, 10) + '.json'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ====================================================================
+   Events
+   ==================================================================== */
+document.addEventListener('click', e => {
+  if (e.target.closest('a.play')) return;
+  const t = e.target;
+  if (t.id === 'sheet') { closeSheet(); return; }
+  const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; renderChips(); renderList(); return; }
+  const pick = t.closest('[data-pick]'); if (pick) { pickResult(+pick.dataset.pick); return; }
+  const open = t.closest('[data-open]'); if (open) { openRecord(open.dataset.open); return; }
+  const b = t.closest('[data-act]'); if (!b) return;
+  const act = b.dataset.act;
+  if (act === 'add') openRecord(null);
+  else if (act === 'close') closeSheet();
+  else if (act === 'save') saveDraft();
+  else if (act === 'delete') deleteDraft();
+  else if (act === 'unlink') unlinkDraft();
+  else if (act === 'sp-search') sheetSearch();
+  else if (act === 'sp-connect') spConnect();
+  else if (act === 'sp-disconnect') { SP.clear(); toast('Spotify disconnected'); openSettings(); }
+  else if (act === 'settings') openSettings();
+  else if (act === 'match-all') matchAll();
+  else if (act === 'match-stop') S.stop = true;
+  else if (act === 'export') exportJSON();
+  else if (act === 'signout') { closeSheet(); fb.A.signOut(fb.auth); }
+});
+document.addEventListener('change', e => {
+  if (e.target.id === 'sort') { S.sort = e.target.value; renderList(); }
+  if (e.target.id === 'csv' && e.target.files[0]) importCSV(e.target.files[0]);
+});
+document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; renderList(); } });
+document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'sp-q') { e.preventDefault(); sheetSearch(); } if (e.key === 'Escape') closeSheet(); });
+$('#btn-copy-uid').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(S.user.uid).then(() => toast('Copied')); });
+$('#btn-signin').addEventListener('click', async () => {
+  $('#login-err').textContent = '';
+  try { await fb.A.signInWithPopup(fb.auth, new fb.A.GoogleAuthProvider()); }
+  catch (e) { if (e.code !== 'auth/popup-closed-by-user' && e.code !== 'auth/cancelled-popup-request') $('#login-err').textContent = 'Sign in failed. Allow pop ups for this site and try again.'; }
+});
+
+/* ====================================================================
+   Start
+   ==================================================================== */
+(async function main() {
+  renderChips();
+  await spHandleRedirect();
+  try { await fbInit(); } catch (e) { $('#loading').innerHTML = '<h1>Musicbox</h1><p>Could not load. Check your connection and reload.</p>'; return; }
+  fb.A.onAuthStateChanged(fb.auth, u => {
+    S.user = u;
+    if (!u) { if (unsub) { unsub(); unsub = null; } S.recs = []; show('login'); return; }
+    show('loading'); startListening();
+    if (S.pendingToast) { const m = S.pendingToast; S.pendingToast = ''; setTimeout(() => toast(m), 600); }
+  });
+})();
+</script>
+</body>
+</html>
