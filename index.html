@@ -17,12 +17,12 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;background-color:var(--bg);background-image:var(--img);background-attachment:fixed;color:var(--txt);font:16px/1.4 var(--font)}
 h1,h2,h3{font-family:var(--head);text-transform:var(--tt);letter-spacing:var(--ls);font-weight:var(--hw)}
-body{min-height:100vh;padding-bottom:env(safe-area-inset-bottom)}
+body{min-height:100vh}
 button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 .hide{display:none!important}
 .center{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;padding:24px;text-align:center}
-.center h1{margin:0;font-size:34px;letter-spacing:.5px}
+.center h1{margin:0;font-size:34px}
 .center p{margin:0;color:var(--dim);max-width:340px}
 .btn{background:var(--acc);color:var(--on);border:0;border-radius:var(--radius);padding:12px 18px;font-weight:600;min-height:44px;box-shadow:var(--bevel)}
 .btn.ghost{background:transparent;color:var(--txt);border:1px solid var(--line)}
@@ -30,25 +30,59 @@ button{cursor:pointer}
 .btn.red{background:transparent;color:var(--red);border:1px solid var(--red)}
 .btn.small{padding:8px 12px;min-height:36px;font-size:14px}
 .btn:disabled{opacity:.5}
-header{position:sticky;top:0;z-index:5;background:var(--bg);padding:calc(10px + env(safe-area-inset-top)) 14px 8px;border-bottom:1px solid var(--line)}
 .row{display:flex;gap:8px;align-items:center}
 .row.wrap{flex-wrap:wrap}
+.row2{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-top:8px}
 .grow{flex:1;min-width:0}
 h2{margin:0;font-size:22px}
-.count{color:var(--dim);font-size:13px}
-.hello{color:var(--dim);font-size:13px;font-style:italic;margin-top:1px}
-header::after{content:"";position:absolute;right:58px;top:calc(2px + env(safe-area-inset-top));width:88px;height:42px;background:var(--orn) no-repeat right center/contain;pointer-events:none;z-index:0}
-header>*{position:relative;z-index:1}
-@media (max-width:370px){header::after{opacity:.35}}
+h3{font-size:20px}
 input,select,textarea{width:100%;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:11px 12px;min-height:44px}
+.row2 select{width:auto;min-height:38px;padding:6px 10px}
 textarea{min-height:80px;resize:vertical}
 label{display:block;font-size:13px;color:var(--dim);margin:10px 0 4px}
+.note{color:var(--dim);font-size:13px;margin:6px 0}
+.err{color:var(--red)}
+code{background:var(--card);padding:2px 6px;border-radius:6px;word-break:break-all;font-size:13px}
+
+/* ---------- header, tabs, main ---------- */
+header.top{position:sticky;top:0;z-index:6;background:var(--bg);border-bottom:1px solid var(--line);padding:calc(12px + env(safe-area-inset-top)) 16px 8px;max-width:920px;margin:0 auto}
+body.scrolled header.top{padding-top:calc(6px + env(safe-area-inset-top));padding-bottom:6px}
+body.scrolled .hello,body.scrolled header.top::after{display:none}
+body.scrolled header.top h2{font-size:1.05em}
+.hello{color:var(--dim);font-size:13px;font-style:italic;margin-top:1px}
+header.top::after{content:"";position:absolute;right:60px;top:calc(8px + env(safe-area-inset-top));width:96px;height:46px;background:var(--orn) no-repeat right center/contain;pointer-events:none;z-index:0}
+header.top>*{position:relative;z-index:1}
+main{padding:0 14px calc(96px + env(safe-area-inset-bottom));max-width:920px;margin:0 auto}
+nav.tabs{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--bg);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:8}
+nav.tabs button{flex:1;background:none;border:0;padding:8px 2px 6px;display:flex;flex-direction:column;align-items:center;gap:2px;font-size:11px;color:var(--dim);min-height:56px}
+nav.tabs button.on{color:var(--acc)}
+nav.tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.fab{position:fixed;right:16px;bottom:calc(72px + env(safe-area-inset-bottom));width:56px;height:56px;border-radius:50%;border:0;background:var(--acc);color:var(--on);font-size:30px;box-shadow:0 4px 14px #0008;z-index:7}
+.box{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px;margin-top:12px;box-shadow:var(--bevel)}
+.box>b:first-child,.box>h3:first-child{display:block;margin-bottom:4px}
+.empty{color:var(--dim);text-align:center;padding:40px 10px}
+
+/* ---------- today card and trophy strip ---------- */
+.today{display:flex;gap:12px;align-items:center;border:1px solid var(--line);background:var(--card);border-radius:var(--radius);padding:10px 12px;margin:6px 0 8px;position:relative}
+.today p{margin:2px 0 0;color:var(--dim);font-size:14px}
+.today p.note{margin:2px 0 0}
+.tart{width:64px;height:40px;background:var(--orn) no-repeat center/contain;flex:none}
+.ddx{background:transparent;border:0;color:var(--dim);font-size:22px;line-height:1;padding:4px 8px;align-self:flex-start}
+.tstrip{display:flex;gap:6px;align-items:center;overflow-x:auto;padding:2px 0 4px;min-height:44px}
+.tmini{background:none;border:0;padding:0;flex:none;line-height:0}
+.more{background:none;border:0;color:var(--acc);white-space:nowrap;padding:8px;flex:none}
+
+/* ---------- library ---------- */
+.ctl{position:sticky;top:var(--hh,0px);z-index:5;background:var(--bg);padding:8px 0 6px;border-bottom:1px solid var(--line)}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{border:1px solid var(--line);background:transparent;border-radius:calc(var(--radius)*4);padding:6px 12px;font-size:14px;white-space:nowrap;box-shadow:var(--bevel)}
 .chip.on{background:var(--acc);color:var(--on);border-color:var(--acc)}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.seg button{background:transparent;border:0;padding:7px 12px;min-height:38px}
+.seg button.on{background:var(--acc);color:var(--on)}
 .icon{background:transparent;border:1px solid var(--line);border-radius:var(--radius);width:44px;height:44px;font-size:20px;flex:none;box-shadow:var(--bevel)}
-#list{padding:6px 14px 110px}
-.item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
+#lst{padding:2px 0}
+.item{display:flex;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line);cursor:pointer}
 .cov{width:56px;height:56px;border-radius:var(--cover-r);flex:none;object-fit:cover;background:var(--cov)}
 .meta{flex:1;min-width:0}
 .meta b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -56,32 +90,126 @@ label{display:block;font-size:13px;color:var(--dim);margin:10px 0 4px}
 .tag{font-size:12px;border-radius:999px;padding:2px 8px;border:1px solid var(--line);color:var(--dim)}
 .tag.ok{color:var(--green);border-color:var(--green)}
 a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#04210e;display:flex;align-items:center;justify-content:center;text-decoration:none;font-size:15px;flex:none}
-.empty{color:var(--dim);text-align:center;padding:40px 10px}
-.fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));width:58px;height:58px;border-radius:50%;border:0;background:var(--acc);color:var(--on);font-size:30px;box-shadow:0 4px 14px #0008;z-index:6}
+#lst.covers{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px 12px;padding-top:12px}
+.tile{position:relative;cursor:pointer;min-width:0}
+.tile .tc{width:100%;aspect-ratio:1;border-radius:var(--cover-r);object-fit:cover;display:block;background:var(--cov)}
+.tile b{display:block;margin-top:6px;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile span.sub{display:block;color:var(--dim);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tile a.play{position:absolute;right:6px;top:6px;width:34px;height:34px;font-size:13px}
+.tile .nl{position:absolute;left:6px;top:6px;background:var(--bg);opacity:.9;border:1px solid var(--line);border-radius:999px;padding:1px 8px;font-size:11px;color:var(--dim)}
+#pgr{display:flex;gap:8px;align-items:center;justify-content:center;flex-wrap:wrap;margin:16px 0}
+#pgr select{width:auto;min-height:36px;padding:4px 8px}
+
+/* ---------- sheets (record form, welcome) ---------- */
 #sheet{position:fixed;inset:0;background:#000a;z-index:20;display:flex;align-items:flex-end}
 .panel{background:var(--bg);border-radius:calc(var(--radius)*1.6) calc(var(--radius)*1.6) 0 0;max-height:94vh;width:100%;overflow:auto;padding:16px 16px calc(24px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
-.panel h3{margin:0 0 4px;font-size:20px}
+.panel h3{margin:0 0 4px}
 .sec{border-top:1px solid var(--line);margin-top:16px;padding-top:12px}
 .res{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:8px;margin-top:8px;box-shadow:var(--bevel)}
 .res .cov{width:48px;height:48px}
 .res .meta b{white-space:normal}
 .best{color:var(--green);font-size:12px}
-.note{color:var(--dim);font-size:13px;margin:6px 0}
-.err{color:var(--red)}
-code{background:var(--card);padding:2px 6px;border-radius:6px;word-break:break-all;font-size:13px}
-#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(90px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:12px;z-index:40;max-width:90vw;text-align:center}
+.wlist{margin:10px 0 0;padding:0;list-style:none}
+.wlist li{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+.wlist li i{font-style:normal;color:var(--acc);font-weight:700;flex:none}
+
+/* ---------- stats ---------- */
+.stat{display:flex;gap:8px;flex-wrap:wrap}
+.stat div{flex:1 1 84px;background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px 6px;text-align:center}
+.stat b{display:block;font-size:22px}
+.stat span{font-size:12px;color:var(--dim)}
+.hbar{display:flex;gap:8px;align-items:center;margin:6px 0;font-size:14px}
+.hbar>span:first-child{width:38%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbar .bar{flex:1;margin:0}
+.bar{height:6px;background:var(--bg);border:1px solid var(--line);border-radius:3px;overflow:hidden;margin-top:6px}
+.bar i{display:block;height:100%;background:var(--acc);width:0}
+.months{display:flex;gap:4px;align-items:flex-end;height:112px;margin-top:6px}
+.months div{flex:1;text-align:center;font-size:11px;color:var(--dim);display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+.months i{display:block;width:100%;background:var(--acc);border-radius:3px 3px 0 0;min-height:2px}
+
+/* ---------- trophies ---------- */
+.trgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px}
+.tcell{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:10px 4px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:3px;box-shadow:var(--bevel)}
+.tcell b{font-size:13px;line-height:1.2}
+.tcell span{font-size:12px;color:var(--dim)}
+.tcell.lock svg{filter:grayscale(1);opacity:.45}
+.tov{position:fixed;inset:0;background:#000b;z-index:30;display:flex;align-items:center;justify-content:center;padding:18px}
+.tcard{background:var(--card);border:1px solid var(--line);border-radius:calc(var(--radius)*1.6);padding:20px;max-width:380px;width:100%;text-align:center;max-height:90vh;overflow:auto}
+.tcard h2{margin:8px 0 2px}
+.tcard p{margin:6px 0}
+.thead{color:var(--acc);font-size:13px;letter-spacing:1px;text-transform:uppercase}
+.tmany{display:flex;gap:6px;justify-content:center;flex-wrap:wrap;margin:10px 0}
+.trow{display:flex;gap:8px;align-items:center;text-align:left;padding:7px 0;border-top:1px solid var(--line);font-size:14px}
+.trow i{width:12px;height:12px;border-radius:50%;flex:none}
+@keyframes pop{from{transform:scale(.82);opacity:0}to{transform:none;opacity:1}}
+.tpop .tcard{animation:pop .35s ease-out}
+@media(prefers-reduced-motion:reduce){.tpop .tcard{animation:none}}
+
+/* ---------- theme picker ---------- */
 .tgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
 .theme{display:flex;align-items:center;gap:10px;border:2px solid var(--line);background:var(--card);border-radius:var(--radius);padding:8px;text-align:left;min-height:48px;font-size:14px}
 .theme.on{border-color:var(--acc)}
 .sw{width:34px;height:34px;border-radius:50%;flex:none;position:relative;border:1px solid #8886;overflow:hidden;display:block}
 .sw i{position:absolute;inset:9px;border-radius:50%;display:block}
 [data-theme=eclectic] .item{border-left:4px solid hsl(var(--h,30) 70% 55%);padding-left:10px}
-[data-theme=eclectic] div.cov{background:radial-gradient(circle,var(--bg) 0 9%,hsl(var(--h,30) 62% 62%) 10% 34%,var(--bg) 35% 38%,hsl(var(--h,30) 62% 62%) 39% 100%)}
-.bar{height:6px;background:var(--card);border-radius:3px;overflow:hidden;margin-top:6px}
-.bar i{display:block;height:100%;background:var(--acc);width:0}
+[data-theme=eclectic] div.cov,[data-theme=eclectic] div.tc{background:radial-gradient(circle,var(--bg) 0 9%,hsl(var(--h,30) 62% 62%) 10% 34%,var(--bg) 35% 38%,hsl(var(--h,30) 62% 62%) 39% 100%)}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(150px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);padding:10px 16px;border-radius:var(--radius);z-index:40;max-width:90vw;text-align:center}
+
+/* ====== Wider screens. Phones keep the layout above. ====== */
+/* tablet */
+@media (min-width:760px){
+  header.top,main{padding-left:24px;padding-right:24px}
+  header.top::after{right:76px;width:120px;height:56px}
+  #lst.list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;padding-top:12px}
+  #lst.list .item{border:1px solid var(--line);background:var(--card);border-radius:var(--radius);padding:10px 12px;box-shadow:var(--bevel)}
+  #lst.covers{grid-template-columns:repeat(4,minmax(0,1fr));gap:18px 14px}
+  .trgrid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  html[data-tab=stats] main,html[data-tab=settings] main{column-count:2;column-gap:14px}
+  html[data-tab=stats] main>*,html[data-tab=settings] main>*{break-inside:avoid;min-width:0}
+  #sheet{align-items:center;justify-content:center}
+  .panel{max-width:620px;border-radius:calc(var(--radius)*1.6);max-height:90vh;border:1px solid var(--line)}
+  #toast{bottom:calc(110px + env(safe-area-inset-bottom))}
+}
+/* laptop: tab bar moves to the side, three columns, record form slides in from the right */
+@media (min-width:1100px){
+  body{padding-left:92px}
+  header.top,main{max-width:1120px}
+  nav.tabs{right:auto;top:0;bottom:0;width:92px;flex-direction:column;justify-content:flex-start;gap:6px;padding:18px 0 0;border-top:0;border-right:1px solid var(--line)}
+  nav.tabs button{flex:0 0 auto;padding:12px 4px;margin:0 8px;border-radius:var(--radius)}
+  nav.tabs button.on{background:var(--card)}
+  .fab{right:28px;bottom:28px}
+  main{padding-bottom:70px}
+  #lst.list{grid-template-columns:repeat(3,minmax(0,1fr))}
+  #lst.covers{grid-template-columns:repeat(6,minmax(0,1fr))}
+  .trgrid{grid-template-columns:repeat(5,minmax(0,1fr))}
+  #sheet{justify-content:flex-end;align-items:stretch;padding-left:92px}
+  .panel{max-width:500px;max-height:100vh;height:100%;border-radius:calc(var(--radius)*1.6) 0 0 calc(var(--radius)*1.6)}
+  #toast{bottom:28px}
+}
+@media (min-width:1500px){
+  header.top,main{max-width:1320px}
+  #lst.list{grid-template-columns:repeat(4,minmax(0,1fr))}
+  #lst.covers{grid-template-columns:repeat(8,minmax(0,1fr))}
+  .trgrid{grid-template-columns:repeat(6,minmax(0,1fr))}
+}
+@media (max-width:370px){header.top::after{opacity:.35}}
+
+.fab2{bottom:calc(140px + env(safe-area-inset-bottom));width:44px;height:44px;right:22px;background:var(--card);color:var(--txt);border:1px solid var(--line);font-size:0;display:flex;align-items:center;justify-content:center}
+.fab2 svg,.bell svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.bell{position:fixed;top:calc(10px + env(safe-area-inset-top));right:12px;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--txt);display:flex;align-items:center;justify-content:center;z-index:12;padding:0}
+.bell b{position:absolute;top:-4px;right:-4px;min-width:18px;height:18px;border-radius:9px;background:var(--acc);color:var(--on);font-size:11px;display:flex;align-items:center;justify-content:center;padding:0 4px}
+.bell b:empty{display:none}
+.scanbox{position:relative;border-radius:var(--radius);overflow:hidden;background:#000;aspect-ratio:4/3;margin:10px 0}
+.scanbox video{width:100%;height:100%;object-fit:cover;display:block}
+.scanbox i{position:absolute;left:10%;right:10%;top:50%;height:2px;background:var(--acc);box-shadow:0 0 8px var(--acc)}
+.spinc{text-align:center;padding:8px 0 4px}
+.spinc .cov{width:168px;height:168px;margin:0 auto 12px;display:block}
+.spinc h3{margin:0 0 4px}
+@media (min-width:1100px){.fab2{right:38px;bottom:92px}.bell{right:24px}}
 </style>
 </head>
 <body>
+
 
 <div id="loading" class="center"><h1>Musicbox</h1><p>Loading</p></div>
 
@@ -101,19 +229,22 @@ code{background:var(--card);padding:2px 6px;border-radius:6px;word-break:break-a
 </div>
 
 <div id="app" class="hide">
-  <header>
-    <div class="row">
-      <div class="grow"><h2 id="title">Musicbox</h2><div class="hello" id="hello"></div><div class="count" id="count"></div></div>
-      <button class="icon" data-act="settings" aria-label="Settings">&#9881;</button>
-    </div>
-    <div style="margin-top:8px"><input id="q" type="search" placeholder="Search artist, title, label" autocomplete="off"></div>
-    <div class="chips" id="chips"></div>
-  </header>
-  <div id="list"></div>
+  <header class="top"><div class="grow"><h2 id="title">Musicbox</h2><div class="hello" id="hello"></div></div></header>
+  <main id="main"></main>
   <button class="fab" data-act="add" aria-label="Add a record">+</button>
+  <button class="fab fab2" data-act="scan" aria-label="Scan a barcode"><svg viewBox="0 0 24 24"><path d="M4 7V5h2M18 5h2v2M20 17v2h-2M6 19H4v-2M8 8v8M11 8v8M14 8v8M17 8v8"/></svg></button>
+  <button class="bell" id="bell" data-act="bell" aria-label="What your partner has added"><svg viewBox="0 0 24 24"><path d="M6 17V11a6 6 0 0 1 12 0v6l1.5 2h-15zM10 21h4"/></svg><b id="bellN"></b></button>
+  <nav class="tabs" id="tabs">
+    <button data-tab="library" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Library</button>
+    <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Stats</button>
+    <button data-tab="trophies"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/></svg>Trophies</button>
+    <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
+  </nav>
 </div>
 
 <div id="sheet" class="hide"><div class="panel" id="panel"></div></div>
+<div id="tdet" class="tov hide"></div>
+<div id="tpop" class="tov tpop hide"></div>
 <div id="toast" class="hide"></div>
 
 <script type="module">
@@ -137,7 +268,13 @@ const COLLECTION = 'vinyl';
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const sleep = ms => new Promise(r => setTimeout(r, ms));
-const S = { user: null, recs: [], q: '', filter: 'all', sort: 'artist', draft: null, results: [], matching: false, stop: false };
+const ls = (k, d) => { try { const v = localStorage.getItem(k); return v == null ? d : v; } catch (e) { return d; } };
+const lset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
+const S = {
+  user: null, recs: [], meta: null, recsReady: false, metaReady: false, started: false,
+  tab: 'library', q: '', filter: 'all', sort: 'artist', view: ls('musicbox_view', 'list'), pp: +ls('musicbox_pp', '50') || 50, page: 0,
+  draft: null, results: [], matching: false, stop: false, dq: null
+};
 
 /* ---------- toast ---------- */
 let toastT;
@@ -270,7 +407,7 @@ function spErrorText(e) {
 /* ====================================================================
    Firebase
    ==================================================================== */
-let fb = null, unsub = null;
+let fb = null, unsubR = null, unsubM = null;
 async function fbInit() {
   const base = 'https://www.gstatic.com/firebasejs/' + FB_VER + '/';
   const [appM, authM, fsM] = await Promise.all([import(base + 'firebase-app.js'), import(base + 'firebase-auth.js'), import(base + 'firebase-firestore.js')]);
@@ -283,68 +420,34 @@ async function fbInit() {
 }
 const col = () => fb.F.collection(fb.db, COLLECTION);
 const ref = id => fb.F.doc(fb.db, COLLECTION, id);
+const metaRef = () => fb.F.doc(fb.db, 'vinylMeta', 'household');
 
 function show(view) {
   for (const v of ['loading', 'login', 'denied', 'app']) $('#' + v).classList.toggle('hide', v !== view);
 }
+function stopListening() {
+  if (unsubR) { unsubR(); unsubR = null; }
+  if (unsubM) { unsubM(); unsubM = null; }
+  S.recsReady = false; S.metaReady = false; S.meta = null; S.started = false;
+}
 function startListening() {
-  if (unsub) unsub();
-  unsub = fb.F.onSnapshot(col(), snap => {
+  stopListening();
+  unsubR = fb.F.onSnapshot(col(), snap => {
     S.recs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    show('app'); renderList();
+    S.recsReady = true;
+    if (!S.started) { S.started = true; show('app'); setTab(S.tab); welcomeCheck(); }
+    else if (S.tab === 'library') refreshLibrary();
+    else renderTab();
+    checkTrophies(); updateBell();
   }, err => {
-    if (err && err.code === 'permission-denied') {
-      $('#denied-uid').textContent = S.user.uid; show('denied');
-    } else { show('app'); toast('Could not load the collection'); }
+    if (err && err.code === 'permission-denied') { $('#denied-uid').textContent = S.user.uid; show('denied'); }
+    else { show('app'); toast('Could not load the collection'); }
   });
-}
-
-/* ====================================================================
-   List
-   ==================================================================== */
-const CHIPS = [['all', 'All'], ['linked', 'Linked'], ['unlinked', 'Not linked']];
-function renderChips() {
-  $('#chips').innerHTML = CHIPS.map(([k, l]) => `<button class="chip ${S.filter === k ? 'on' : ''}" data-chip="${k}">${l}</button>`).join('') +
-    `<select id="sort" style="width:auto;min-height:34px;padding:4px 8px;border-radius:999px">
-      <option value="artist"${S.sort === 'artist' ? ' selected' : ''}>Artist</option>
-      <option value="title"${S.sort === 'title' ? ' selected' : ''}>Title</option>
-      <option value="year"${S.sort === 'year' ? ' selected' : ''}>Year</option>
-      <option value="added"${S.sort === 'added' ? ' selected' : ''}>Recently added</option></select>`;
-}
-function visibleRecs() {
-  const q = norm(S.q);
-  let a = S.recs.filter(r => {
-    if (S.filter === 'linked' && !r.spotifyId) return false;
-    if (S.filter === 'unlinked' && r.spotifyId) return false;
-    if (!q) return true;
-    return norm([r.artist, r.title, r.label, r.catno, r.pressing, r.notes].join(' ')).includes(q);
-  });
-  const by = {
-    artist: (x, y) => norm(x.artist).localeCompare(norm(y.artist)) || (+x.year || 0) - (+y.year || 0) || norm(x.title).localeCompare(norm(y.title)),
-    title: (x, y) => norm(x.title).localeCompare(norm(y.title)),
-    year: (x, y) => (+x.year || 9999) - (+y.year || 9999),
-    added: (x, y) => (y.addedAt || 0) - (x.addedAt || 0)
-  }[S.sort];
-  return a.sort(by);
-}
-function renderList() {
-  const linked = S.recs.filter(r => r.spotifyId).length;
-  $('#count').textContent = S.recs.length ? `${S.recs.length} records, ${linked} linked to Spotify` : 'No records yet';
-  const a = visibleRecs();
-  if (!a.length) {
-    $('#list').innerHTML = `<div class="empty">${S.recs.length ? 'Nothing matches.' : 'Tap + to add a record, or import your Discogs collection in Settings.'}</div>`;
-    return;
-  }
-  $('#list').innerHTML = a.map(r => `
-    <div class="item" data-open="${esc(r.id)}" style="--h:${hue(r.artist)}">
-      ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
-      <div class="meta">
-        <b>${esc(r.title)}</b>
-        <span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span>
-        <span>${r.spotifyId ? '<span class="tag ok" style="display:inline">Linked</span>' : '<span class="tag" style="display:inline">Not linked</span>'}${r.pressing ? ' ' + esc(r.pressing) : ''}</span>
-      </div>
-      ${r.spotifyId ? `<a class="play" href="https://open.spotify.com/album/${esc(r.spotifyId)}" target="_blank" rel="noopener" aria-label="Open in Spotify">&#9654;</a>` : ''}
-    </div>`).join('');
+  unsubM = fb.F.onSnapshot(metaRef(), snap => {
+    S.meta = snap.exists() ? snap.data() : {}; S.metaReady = true; S.metaFail = false;
+    checkTrophies(); fillStrip();
+    if (S.tab === 'trophies') renderTrophies();
+  }, err => { S.metaFail = true; S.meta = S.meta || {}; if (S.tab === 'trophies') renderTrophies(); });
 }
 
 /* ====================================================================
@@ -352,7 +455,7 @@ function renderList() {
    ==================================================================== */
 const GRADES = ['', 'Mint (M)', 'Near Mint (NM)', 'Very Good Plus (VG+)', 'Very Good (VG)', 'Good Plus (G+)', 'Good (G)', 'Fair (F)', 'Poor (P)'];
 function openSheet(html) { $('#panel').innerHTML = html; $('#sheet').classList.remove('hide'); document.body.style.overflow = 'hidden'; }
-function closeSheet() { $('#sheet').classList.add('hide'); document.body.style.overflow = ''; S.draft = null; S.results = []; }
+function closeSheet() { $('#sheet').classList.add('hide'); document.body.style.overflow = ''; S.draft = null; S.results = []; stopScan(); }
 
 function fieldHTML(k, label, v, type) {
   return `<label>${label}</label><input data-f="${k}" type="${type || 'text'}" value="${esc(v)}"${type === 'number' ? ' inputmode="numeric"' : ''}>`;
@@ -369,9 +472,9 @@ function spCurrentHTML() {
       <a class="btn green small" style="text-decoration:none;display:inline-flex;align-items:center" href="https://open.spotify.com/album/${esc(d.spotifyId)}" target="_blank" rel="noopener">Open in Spotify</a>
       <button class="btn ghost small" data-act="unlink">Unlink</button></div>`;
 }
-function openRecord(id) {
+function openRecord(id, pre) {
   const r = id ? S.recs.find(x => x.id === id) : null;
-  S.draft = r ? { ...r } : { artist: '', title: '', copies: 1 };
+  S.draft = r ? { ...r } : { artist: '', title: '', copies: 1, ...(pre || {}) };
   S.results = [];
   const d = S.draft;
   openSheet(`
@@ -381,6 +484,7 @@ function openRecord(id) {
     <div class="row"><div class="grow">${fieldHTML('year', 'Year', d.year, 'number')}</div><div class="grow">${fieldHTML('copies', 'Copies', d.copies || 1, 'number')}</div></div>
     ${fieldHTML('label', 'Label', d.label)}
     ${fieldHTML('catno', 'Catalogue number', d.catno)}
+    ${fieldHTML('barcode', 'Barcode', d.barcode)}
     ${fieldHTML('format', 'Format', d.format)}
     ${fieldHTML('pressing', 'Pressing or colour', d.pressing)}
     ${gradeHTML('mediaCond', 'Record condition', d.mediaCond)}
@@ -408,14 +512,14 @@ async function saveDraft() {
   if (!d.artist || !d.title) { toast('Artist and title are needed'); return; }
   const now = Date.now();
   const data = {
-    artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', format: d.format || '',
+    artist: d.artist, title: d.title, year: d.year || '', copies: d.copies, label: d.label || '', catno: d.catno || '', barcode: d.barcode || '', format: d.format || '',
     pressing: d.pressing || '', mediaCond: d.mediaCond || '', sleeveCond: d.sleeveCond || '', notes: d.notes || '',
     spotifyId: d.spotifyId || '', spotifyName: d.spotifyName || '', spotifyArtist: d.spotifyArtist || '', cover: d.cover || '',
     discogsId: d.discogsId || '', updatedAt: now
   };
   try {
     if (d.id) await fb.F.updateDoc(ref(d.id), data);
-    else await fb.F.addDoc(col(), { ...data, addedAt: now, addedBy: S.user.email || '' });
+    else await fb.F.addDoc(col(), { ...data, addedAt: now, addedBy: S.user.email || '', addedByName: firstName() });
     closeSheet(); toast('Saved');
   } catch (e) { toast('Could not save. Check your connection.'); }
 }
@@ -610,29 +714,29 @@ const ART = {
 };
 /* Header title and one line under it, per theme. Edit freely. */
 const TXT = {
-  record: ['Musicbox', 'Spin something'],
-  cassette: ['Mixtape', 'Side A, mostly'],
+  record: ['Musicbox', 'Our collection'],
+  cassette: ['Mixtape', 'Filed by hand'],
   ipod: ['Library', 'Everything we own'],
   cdrom: ['Disc Library', 'Please insert disc to continue'],
-  mp3: ['Now Playing', '128 kbps, in spirit'],
+  mp3: ['Our Files', 'All files accounted for'],
   spotify: ['Our Library', 'Owned, not streamed'],
-  heavymetal: ['Heavy Rotation', 'Mind the neighbours'],
+  heavymetal: ['Heavy Metal', 'Mind the neighbours'],
   rock: ['Riffs', 'Plugged in'],
   rockmetal: ['Amplified', 'Somewhere between the two'],
-  gothic: ['Nocturne', 'Best played after dark'],
+  gothic: ['Nocturne', 'Best kept after dark'],
   prog: ['Side Two of Three', 'Tracks over twelve minutes: see notes'],
   thrash: ['Fast Lane', 'Mind the speed'],
-  doom: ['Slow Burn', 'Tempo is a suggestion'],
+  doom: ['Slow Burn', 'Catalogued slowly'],
   industrial: ['Machine Room', 'Running on schedule'],
   blackmetal: ['Cold Storage', 'Please keep the lights off'],
-  eclectic: ['Everything', 'Shuffle is a lifestyle'],
+  eclectic: ['Everything', 'Filed under everything'],
   tool: ['The Toolbox', 'Fit for purpose'],
   anathema: ['Atmospheric', 'Windows open, volume low'],
   apc: ['Full Circle', 'Records go round, as it happens'],
   deftones: ['Hazy Weight', 'Loud, but kindly'],
   massive: ['Low Frequency', 'Lights down'],
-  bisbal: ['Sunday Afternoon', 'Songs for the kitchen'],
-  bieber: ['Pop Shelf', 'Everyone sings along eventually']
+  bisbal: ['Sunday Afternoon', 'Sunday afternoon'],
+  bieber: ['Pop Shelf', 'Everyone has one in here']
 };
 const DEFAULT_COV = 'radial-gradient(circle,var(--bg) 0 9%,var(--line) 10% 34%,var(--bg) 35% 38%,var(--line) 39% 100%)';
 function hue(s) { let h = 0; for (const c of String(s || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
@@ -663,39 +767,6 @@ function themeGridHTML() {
     THEMES.filter(t => t.g === g).map(t => `<button class="theme ${S.theme === t.id ? 'on' : ''}" data-theme-id="${t.id}"><span class="sw" style="background:${t.bg}"><i style="background:${t.acc}"></i></span>${esc(t.n)}</button>`).join('') + '</div>').join('');
 }
 
-/* ---------- settings ---------- */
-function openSettings() {
-  const connected = !!SP.tok();
-  const unlinked = S.recs.filter(r => !r.spotifyId).length;
-  openSheet(`
-    <div class="row"><h3 class="grow">Settings</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
-    <div class="note">Signed in as ${esc(S.user.email || '')}</div>
-    <div class="sec"><b>Theme</b><div id="theme-grid">${themeGridHTML()}</div><div class="note">Original colour schemes, not affiliated with any band or brand. Saved on this device only.</div></div>
-    <div class="sec"><b>Spotify</b>
-      <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
-      <div class="row wrap">
-        ${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}
-      </div>
-      <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div>
-    </div>
-    <div class="sec"><b>Match with Spotify</b>
-      <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly. Close matches are left for you to check by hand.</div>
-      <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
-      <div id="prog" class="note"></div><div class="bar hide" id="bar"><i></i></div>
-    </div>
-    <div class="sec"><b>Import from Discogs</b>
-      <div class="note">In Discogs, open your collection, choose Export, and download the CSV. Then pick the file here. Records already imported are skipped.</div>
-      <input type="file" id="csv" accept=".csv,text/csv">
-      <div id="imp" class="note"></div>
-    </div>
-    <div class="sec"><b>Backup</b>
-      <div class="row wrap"><button class="btn ghost small" data-act="export">Download JSON backup</button></div>
-    </div>
-    <div class="sec"><b>Account</b>
-      <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div>
-    </div>`);
-}
 
 async function importCSV(file) {
   const out = $('#imp'); out.textContent = 'Reading file';
@@ -728,7 +799,7 @@ async function importCSV(file) {
       fresh.slice(i, i + 400).forEach(x => {
         const id = x.discogsId ? 'd' + x.discogsId : undefined;
         const docRef = id ? ref(id) : fb.F.doc(col());
-        batch.set(docRef, { ...x, spotifyId: '', spotifyName: '', spotifyArtist: '', cover: '', addedAt: now, updatedAt: now, addedBy: S.user.email || '' });
+        batch.set(docRef, { ...x, spotifyId: '', spotifyName: '', spotifyArtist: '', cover: '', addedAt: now, updatedAt: now, addedBy: S.user.email || '', addedByName: firstName() });
       });
       await batch.commit(); done = Math.min(fresh.length, i + 400); out.textContent = `Imported ${done} of ${fresh.length}`;
     }
@@ -771,38 +842,577 @@ function exportJSON() {
 }
 
 /* ====================================================================
+   Small helpers
+   ==================================================================== */
+const fmtN = n => Number(n).toLocaleString('en-IE');
+const fmtDate = ts => ts ? new Date(ts).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
+const pad = n => String(n).padStart(2, '0');
+const dayKey = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const firstName = () => ((S.user && S.user.displayName) || '').trim().split(/\s+/)[0] || '';
+
+/* ====================================================================
+   Trophies. All of them come from records you have saved.
+   Each trophy has levels. The highest level reached is remembered, so
+   deleting a record never takes a trophy away.
+   ==================================================================== */
+const MET = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond'];
+const MC = [['#c98a58', '#6e3f1f'], ['#d5dbe2', '#5d6670'], ['#f0c24f', '#7a5a0c'], ['#8ee0d4', '#1f6f66'], ['#a9d8ff', '#2f5f8c']];
+const GL = {
+  crate: `<path d='M-10 -3 H10 V9 H-10 Z M-10 -3 L-6 -10 H6 L10 -3 M-4 2 H4'/>`,
+  link: `<path d='M-3 3 L3 -3 M-6 -2 A5 5 0 0 1 1 -9 L4 -9 M6 2 A5 5 0 0 1 -1 9 L-4 9'/>`,
+  people: `<circle cx='-5' cy='-4' r='4'/><circle cx='6' cy='-3' r='3.2'/><path d='M-12 10 q7 -10 14 0 M2 10 q5 -7 10 0'/>`,
+  clock: `<circle r='10'/><path d='M0 -6 V0 L5 3'/>`,
+  tag: `<path d='M-10 -2 L-2 -10 H10 V2 L2 10 Z'/><circle cx='4' cy='-4' r='1.6'/>`,
+  drop: `<path d='M0 -11 C6 -3 9 1 9 5 A9 9 0 0 1 -9 5 C-9 1 -6 -3 0 -11 Z'/>`,
+  copy: `<rect x='-10' y='-6' width='14' height='14' rx='2'/><rect x='-4' y='-10' width='14' height='14' rx='2'/>`,
+  heart: `<path d='M0 9 C-12 0 -9 -9 0 -4 C9 -9 12 0 0 9 Z'/>`,
+  gem: `<path d='M-9 -3 L-4 -9 H4 L9 -3 L0 10 Z M-9 -3 H9'/>`,
+  note: `<path d='M-8 -6 H8 M-8 0 H8 M-8 6 H3'/>`,
+  tray: `<path d='M0 -10 V4 M-5 -1 L0 4 L5 -1 M-9 9 H9'/>`,
+  stack: `<path d='M-10 -7 H10 M-10 0 H10 M-10 7 H10'/>`,
+  star: `<path d='M0 -10 L3 -3 L10 -3 L4 2 L6 9 L0 5 L-6 9 L-4 2 L-10 -3 L-3 -3 Z'/>`,
+  cal: `<rect x='-10' y='-8' width='20' height='18' rx='2'/><path d='M-10 -2 H10 M-5 -11 V-6 M5 -11 V-6'/>`,
+  joint: `<circle cx='-4' r='7'/><circle cx='4' r='7'/>`,
+  check: `<path d='M-8 0 L-2 7 L9 -7'/>`,
+  moon: `<path d='M5 -10 A10 10 0 1 0 10 3 A8 8 0 0 1 5 -10 Z'/>`,
+  hourglass: `<path d='M-7 -10 H7 M-7 10 H7 M-6 -10 C-6 -2 6 -2 6 5 V10 M6 -10 C6 -2 -6 -2 -6 5 V10'/>`
+};
+const TR = [
+  { id: 'crate', n: 'The Crate', g: 'crate', u: 'records saved', t: [1, 10, 50, 150, 500], v: c => c.n },
+  { id: 'tuned', n: 'Linked Up', g: 'link', u: 'records linked to Spotify', t: [1, 10, 50, 150, 500], v: c => c.linked },
+  { id: 'roll', n: 'Roll Call', g: 'people', u: 'different artists', t: [5, 20, 50, 100, 250], v: c => c.artists },
+  { id: 'time', n: 'Time Machine', g: 'clock', u: 'decades covered', t: [2, 4, 5, 6, 7], v: c => c.decades },
+  { id: 'labels', n: 'Label Reader', g: 'tag', u: 'different labels', t: [3, 10, 25, 50, 100], v: c => c.labels },
+  { id: 'colour', n: 'Out of Black', g: 'drop', u: 'coloured or picture discs', t: [1, 3, 10, 25, 50], v: c => c.colour },
+  { id: 'doubles', n: 'Doubles', g: 'copy', u: 'records with more than one copy', t: [1, 3, 10, 25, 50], v: c => c.doubles },
+  { id: 'devoted', n: 'Devoted', g: 'heart', u: 'records by one artist', t: [3, 5, 10, 20, 40], v: c => c.top },
+  { id: 'handle', n: 'Handle with Care', g: 'gem', u: 'records in Mint or Near Mint', t: [1, 5, 15, 40, 100], v: c => c.mint },
+  { id: 'notes', n: 'Liner Notes', g: 'note', u: 'records with your own notes', t: [1, 5, 20, 50, 100], v: c => c.notes },
+  { id: 'moved', n: 'Moved In', g: 'tray', u: 'records imported from Discogs', t: [25, 100, 300], v: c => c.discogs },
+  { id: 'haul', n: 'Big Haul', g: 'stack', u: 'records saved in one day, not counting imports', t: [3, 5, 10, 20, 40], v: c => c.haul },
+  { id: 'vintage', n: 'Vintage', g: 'star', t: [1], d: 'A record released before 1970.', v: c => c.vintage },
+  { id: 'older', n: 'Older Still', g: 'hourglass', t: [1], d: 'A record released before 1960.', v: c => c.older },
+  { id: 'fresh', n: 'Fresh Pressing', g: 'cal', t: [1], d: 'A record released this year.', v: c => c.fresh },
+  { id: 'joint', n: 'Joint Account', g: 'joint', t: [1], d: 'You have each saved at least five records.', v: c => c.joint },
+  { id: 'full', n: 'Full House', g: 'check', t: [1], d: 'Every record is linked to Spotify, with at least ten in the collection.', v: c => c.full },
+  { id: 'night', n: 'Night Shift', g: 'moon', t: [1], h: true, d: 'A record saved between midnight and five in the morning.', v: c => c.night ? 1 : 0 }
+];
+const COLOUR_RE = /\b(clear|colou?red|red|blue|green|yellow|orange|pink|purple|violet|white|gold|silver|splatter|marbled?|translucent|transparent|picture disc|smoke|cloudy|swirl|neon|opaque|galaxy|bone|cream|grey|gray|brown|aqua|teal|magenta|lilac)\b/i;
+function mkCtx(rs) {
+  const yr = new Date().getFullYear();
+  const c = { n: rs.length, linked: 0, colour: 0, doubles: 0, mint: 0, notes: 0, discogs: 0, old: 9999, fresh: 0, night: 0 };
+  const artists = new Map(), labels = new Set(), decades = new Set(), perDay = new Map(), adders = new Map();
+  for (const r of rs) {
+    if (r.spotifyId) c.linked++;
+    if (COLOUR_RE.test((r.pressing || '') + ' ' + (r.format || ''))) c.colour++;
+    if ((+r.copies || 1) > 1) c.doubles++;
+    if (/^(mint|near mint)/i.test(r.mediaCond || '')) c.mint++;
+    if (r.notes) c.notes++;
+    if (r.discogsId) c.discogs++;
+    const y = +r.year;
+    if (y >= 1900 && y <= yr + 1) { decades.add(Math.floor(y / 10) * 10); if (y < c.old) c.old = y; if (y === yr) c.fresh++; }
+    const a = norm(r.artist); if (a) artists.set(a, (artists.get(a) || 0) + 1);
+    const l = norm(r.label); if (l) labels.add(l);
+    if (r.addedBy) adders.set(r.addedBy, (adders.get(r.addedBy) || 0) + 1);
+    if (!r.discogsId && r.addedAt) {
+      const d = new Date(r.addedAt), k = dayKey(d);
+      perDay.set(k, (perDay.get(k) || 0) + 1);
+      if (d.getHours() < 5) c.night++;
+    }
+  }
+  c.artists = artists.size; c.labels = labels.size; c.decades = decades.size;
+  c.top = Math.max(0, ...artists.values()); c.haul = Math.max(0, ...perDay.values());
+  c.joint = [...adders.values()].filter(v => v >= 5).length >= 2 ? 1 : 0;
+  c.full = (c.n >= 10 && c.linked === c.n) ? 1 : 0;
+  c.vintage = c.old < 1970 ? 1 : 0; c.older = c.old < 1960 ? 1 : 0;
+  return c;
+}
+function trophyState() {
+  const c = mkCtx(S.recs), best = (S.meta && S.meta.best) || {}, when = (S.meta && S.meta.when) || {};
+  const items = TR.map(t => {
+    const val = t.v(c), calc = t.t.filter(x => val >= x).length, lvl = Math.max(calc, best[t.id] | 0);
+    return { t, val, calc, lvl, when: Array.from({ length: lvl }, (_, i) => when[t.id + '_' + (i + 1)] || 0) };
+  });
+  return { items, c, by: Object.fromEntries(items.map(x => [x.t.id, x])) };
+}
+function trophySVG(t, lvl, w = 64) {
+  const on = lvl > 0, m = MC[Math.min(Math.max(lvl, 1), 5) - 1], f = on ? m[0] : '#3b3b3e', s = on ? m[1] : '#77777d';
+  return `<svg class="tsvg" viewBox="0 0 64 64" width="${w}" height="${w}" aria-hidden="true"><circle cx="32" cy="32" r="30" fill="${f}" stroke="${s}" stroke-width="2"/><circle cx="32" cy="32" r="25" fill="none" stroke="${s}" stroke-width=".8" opacity=".45"/><circle cx="32" cy="32" r="21" fill="none" stroke="${s}" stroke-width=".8" opacity=".3"/><g transform="translate(32 32)" fill="none" stroke="${s}" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">${GL[t.g]}</g><ellipse cx="22" cy="15" rx="12" ry="5" fill="#fff" opacity=".22" transform="rotate(-28 22 15)"/></svg>`;
+}
+const trWhy = (t, lvl) => t.u ? `You reached ${fmtN(t.t[lvl - 1])} ${t.u}.` : t.d;
+
+let awarding = false;
+function checkTrophies() {
+  if (!S.recsReady || !S.metaReady || awarding) return;
+  const st = trophyState(), best = (S.meta && S.meta.best) || {};
+  const fresh = st.items.filter(x => x.calc > (best[x.t.id] | 0));
+  if (!fresh.length) return;
+  const now = Date.now(), patch = { best: {}, when: {} };
+  fresh.forEach(x => {
+    patch.best[x.t.id] = x.calc;
+    for (let L = (best[x.t.id] | 0) + 1; L <= x.calc; L++) patch.when[x.t.id + '_' + L] = now;
+  });
+  S.meta = S.meta || {};
+  S.meta.best = { ...best, ...patch.best };
+  S.meta.when = { ...(S.meta.when || {}), ...patch.when };
+  try { fb.F.setDoc(metaRef(), patch, { merge: true }).catch(() => {}); } catch (e) {}
+  celebrate(fresh.map(x => ({ t: x.t, lvl: x.calc })));
+  if (S.tab === 'trophies') renderTrophies();
+  fillStrip();
+}
+
+/* ---------- trophy pop ups ---------- */
+let tq = [];
+function celebrate(list) {
+  if (!list.length) return;
+  tq = list.length > 3 ? [{ sum: list }] : list.slice();
+  popNext();
+}
+function popNext() {
+  const el = $('#tpop'), it = tq.shift();
+  if (!it) { el.classList.add('hide'); el.innerHTML = ''; return; }
+  if (it.sum) {
+    el.innerHTML = `<div class="tcard"><div class="thead">Trophies</div><div class="tmany">${it.sum.slice(0, 6).map(x => trophySVG(x.t, x.lvl, 52)).join('')}</div><h2>${it.sum.length} trophies earned</h2><p class="note">Open the Trophies tab to see them all.</p><button class="btn" style="margin-top:10px">Nice</button></div>`;
+  } else {
+    const t = it.t, multi = t.t.length > 1;
+    el.innerHTML = `<div class="tcard"><div class="thead">New trophy</div><div style="margin:10px 0">${trophySVG(t, it.lvl, 120)}</div><h2>${esc(t.n)}</h2><div class="note">${multi ? MET[it.lvl - 1] + ' level' : 'Earned'}</div><p>${esc(trWhy(t, it.lvl))}</p><button class="btn" style="margin-top:10px">${tq.length ? 'Next' : 'Nice'}</button></div>`;
+  }
+  el.classList.remove('hide');
+}
+function showTrophy(id) {
+  const st = trophyState(), x = st.by[id]; if (!x) return;
+  const t = x.t, multi = t.t.length > 1;
+  if (!x.lvl && t.h) return;
+  const rows = t.t.map((th, i) => {
+    const m = MC[Math.min(i, 4)][0], got = i < x.lvl;
+    const text = t.u ? `${fmtN(th)} ${t.u}` : t.d;
+    return `<div class="trow"><i style="background:${m};opacity:${got ? 1 : .35}"></i><span style="flex:1">${multi ? `<b>${MET[i]}</b> · ` : ''}${esc(text)}</span><span class="note">${got ? esc(fmtDate(x.when[i])) : ''}</span></div>`;
+  }).join('');
+  const next = t.t[x.lvl];
+  const prog = next != null && t.u ? `<div class="bar"><i style="width:${Math.min(100, x.val / next * 100)}%"></i></div><p class="note">${fmtN(x.val)} of ${fmtN(next)} ${esc(t.u)}</p>` : '';
+  $('#tdet').innerHTML = `<div class="tcard"><div style="margin:4px 0 8px">${trophySVG(t, x.lvl, 112)}</div><h2>${esc(t.n)}</h2><div class="note">${x.lvl ? (multi ? MET[x.lvl - 1] + ' level' : 'Earned') : 'Not earned yet'}</div>${prog}<div style="margin-top:8px">${rows}</div><button class="btn ghost" data-act="tclose" style="margin-top:12px">Close</button></div>`;
+  $('#tdet').classList.remove('hide');
+}
+function stripInner() {
+  const st = trophyState();
+  const e = st.items.filter(x => x.lvl > 0).sort((a, b) => (b.when[b.lvl - 1] || 0) - (a.when[a.lvl - 1] || 0) || b.lvl - a.lvl).slice(0, 8);
+  if (!e.length) return `<span class="note">${S.recs.length ? 'The first trophy is close.' : 'Trophies appear here as the collection grows.'}</span><button class="more" data-tab="trophies">Trophies &rsaquo;</button>`;
+  const total = st.items.filter(x => x.lvl > 0).length;
+  return e.map(x => `<button class="tmini" data-trophy="${x.t.id}" aria-label="${esc(x.t.n)}">${trophySVG(x.t, x.lvl, 40)}</button>`).join('') + `<button class="more" data-tab="trophies">All ${total} &rsaquo;</button>`;
+}
+const stripHTML = () => `<div class="tstrip" id="tstrip">${stripInner()}</div>`;
+function fillStrip() { const el = $('#tstrip'); if (el) el.innerHTML = stripInner(); }
+
+/* ====================================================================
+   Welcome and daily messages
+   ==================================================================== */
+const QUIET = [
+  'The shelf is where you left it.',
+  'Dust is the only thing not catalogued.',
+  'Alphabetical, chronological or by mood: the shelf has no complaints.',
+  'Records do not mind being counted twice.',
+  'Check the inner sleeve before filing it back.',
+  'Every collection started with one record.',
+  'A tidy catalogue is a quiet pleasure.',
+  'Sleeves stay in their covers. Fingers stay off the grooves.',
+  'Somewhere in here is a record you forgot you owned.',
+  'Original pressing or reissue: both belong on the shelf.',
+  'Cataloguing counts as a hobby.',
+  'The collection is shared, and so is the shelf space.',
+  'A gap on the shelf is just room to grow.',
+  'Check the catalogue number. It is usually right.',
+  'File under the artist, not under the mood.',
+  'A record is only lost if it is not in here.'
+];
+const SPECIAL = {
+  '01-01': 'New year, same shelf. Resolutions are optional.',
+  '03-17': 'St Patrick’s Day. Plenty of Irish records on the shelf.',
+  '10-31': 'Hallowe’en. The darker end of the shelf is on duty.',
+  '12-24': 'Christmas Eve. Check the festive records are filed properly.',
+  '12-25': 'Happy Christmas. The catalogue can wait.',
+  '12-31': 'Last night of the year. A tidy collection to see it out.'
+};
+function quietPick() {
+  if (S.dq == null) {
+    const last = +ls('musicbox_dq', '-1');
+    let n; do { n = Math.floor(Math.random() * QUIET.length); } while (n === last && QUIET.length > 1);
+    S.dq = n; lset('musicbox_dq', String(n));
+  }
+  return S.dq;
+}
+function todayCard() {
+  const now = new Date();
+  if (ls('musicbox_hide_' + dayKey(now), '') === '1') return '';
+  const md = pad(now.getMonth() + 1) + '-' + pad(now.getDate());
+  const line = SPECIAL[md] || QUIET[quietPick()];
+  const h = now.getHours(), hi = h < 5 ? 'Late one' : h < 12 ? 'Good morning' : h < 18 ? 'Good afternoon' : 'Good evening', n = firstName();
+  const wk = S.recs.filter(r => !r.discogsId && r.addedAt && r.addedAt > Date.now() - 7 * 864e5).length;
+  return `<div class="today"><div class="tart"></div><div class="grow"><b>${hi}${n ? ', ' + esc(n) : ''}.</b><p>${esc(line)}</p>${wk ? `<p class="note">${wk} record${wk === 1 ? '' : 's'} saved this week.</p>` : ''}</div><button class="ddx" data-act="ddhide" aria-label="Hide for today">&times;</button></div>`;
+}
+function showWelcome() {
+  const n = firstName(), c = S.recs.length;
+  openSheet(`
+    <div class="row"><h3 class="grow">Welcome to Musicbox${n ? ', ' + esc(n) : ''}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <p>${c ? `The collection has ${fmtN(c)} record${c === 1 ? '' : 's'} so far.` : 'The collection is empty, which is a fine place to start.'} Everything saved here is shared, and shows up on both phones.</p>
+    <ul class="wlist">
+      <li><i>1</i><span>Tap + to save a record, or import your Discogs collection in Settings.</span></li>
+      <li><i>2</i><span>Link each record to its Spotify album. One tap then opens that album in Spotify.</span></li>
+      <li><i>3</i><span>Stats and trophies fill in as the collection grows. Trophies are for records saved.</span></li>
+    </ul>
+    <button class="btn" data-act="close" style="margin-top:14px;width:100%">Get started</button>`);
+}
+function welcomeCheck() {
+  const k = 'musicbox_welcome_' + S.user.uid;
+  if (ls(k, '') === '1') return;
+  lset(k, '1'); showWelcome();
+}
+
+/* ====================================================================
+   Pages: Library, Stats, Trophies, Settings
+   ==================================================================== */
+const FILTERS = [['all', 'All'], ['linked', 'Linked'], ['unlinked', 'Not linked']];
+const PP = [20, 50, 100, 200];
+function counts() { const l = S.recs.filter(r => r.spotifyId).length; return { all: S.recs.length, linked: l, unlinked: S.recs.length - l }; }
+function chipsHTML() { const c = counts(); return FILTERS.map(([k, l]) => `<button class="chip ${S.filter === k ? 'on' : ''}" data-chip="${k}">${l} ${c[k]}</button>`).join(''); }
+function visibleRecs() {
+  const q = norm(S.q);
+  const a = S.recs.filter(r => {
+    if (S.filter === 'linked' && !r.spotifyId) return false;
+    if (S.filter === 'unlinked' && r.spotifyId) return false;
+    if (!q) return true;
+    return norm([r.artist, r.title, r.label, r.catno, r.pressing, r.notes].join(' ')).includes(q);
+  });
+  const by = {
+    artist: (x, y) => norm(x.artist).localeCompare(norm(y.artist)) || (+x.year || 0) - (+y.year || 0) || norm(x.title).localeCompare(norm(y.title)),
+    title: (x, y) => norm(x.title).localeCompare(norm(y.title)),
+    year: (x, y) => (+x.year || 9999) - (+y.year || 9999),
+    added: (x, y) => (y.addedAt || 0) - (x.addedAt || 0)
+  }[S.sort];
+  return a.sort(by);
+}
+const playLink = r => r.spotifyId ? `<a class="play" href="https://open.spotify.com/album/${esc(r.spotifyId)}" target="_blank" rel="noopener" aria-label="Open in Spotify">&#8599;</a>` : '';
+function itemHTML(r) {
+  return `<div class="item" data-open="${esc(r.id)}" style="--h:${hue(r.artist)}">
+    ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
+    <div class="meta">
+      <b>${esc(r.title)}</b>
+      <span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span>
+      <span>${r.spotifyId ? '<span class="tag ok" style="display:inline">Linked</span>' : '<span class="tag" style="display:inline">Not linked</span>'}${r.pressing ? ' ' + esc(r.pressing) : ''}${(+r.copies || 1) > 1 ? ' · ' + (+r.copies) + ' copies' : ''}</span>
+    </div>${playLink(r)}</div>`;
+}
+function tileHTML(r) {
+  return `<div class="tile" data-open="${esc(r.id)}" style="--h:${hue(r.artist)}">
+    ${r.cover ? `<img class="tc" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="tc"></div>'}
+    ${r.spotifyId ? playLink(r) : '<span class="nl">Not linked</span>'}
+    <b>${esc(r.title)}</b><span class="sub">${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span></div>`;
+}
+function renderLibrary() {
+  $('#main').innerHTML = `${todayCard()}${stripHTML()}
+    <div class="ctl">
+      <div class="row"><input id="q" class="grow" type="search" placeholder="Search artist, title, label" autocomplete="off" value="${esc(S.q)}"><button class="btn ghost small" data-act="spin" title="What should we spin?" style="white-space:nowrap">Spin one</button></div>
+      <div class="chips" id="chips">${chipsHTML()}</div>
+      <div class="row2">
+        <select id="sort">${[['artist', 'Artist'], ['title', 'Title'], ['year', 'Year'], ['added', 'Recently added']].map(([v, t]) => `<option value="${v}"${S.sort === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
+        <div class="seg"><button data-view="list" class="${S.view === 'list' ? 'on' : ''}">List</button><button data-view="covers" class="${S.view === 'covers' ? 'on' : ''}">Covers</button></div>
+      </div>
+    </div>
+    <div id="lst"></div><div id="pgr"></div>`;
+  renderLibraryList();
+}
+function refreshLibrary() {
+  const ch = $('#chips'); if (!ch) { renderLibrary(); return; }
+  ch.innerHTML = chipsHTML(); renderLibraryList(); fillStrip();
+}
+function toListTop() {
+  const l = $('#lst'); if (!l) return;
+  const sticky = (($('header.top') || {}).offsetHeight || 0) + (($('.ctl') || {}).offsetHeight || 0);
+  window.scrollTo({ top: Math.max(0, l.getBoundingClientRect().top + scrollY - sticky), behavior: 'auto' });
+}
+function renderLibraryList() {
+  const all = visibleRecs(), pages = Math.max(1, Math.ceil(all.length / S.pp));
+  if (S.page >= pages) S.page = pages - 1; if (S.page < 0) S.page = 0;
+  const a = all.slice(S.page * S.pp, (S.page + 1) * S.pp), box = $('#lst');
+  box.className = S.view;
+  if (!a.length) {
+    box.innerHTML = `<div class="empty">${S.recs.length ? 'Nothing matches.' : 'Tap + to save a record, or import your Discogs collection in Settings.'}</div>`;
+    $('#pgr').innerHTML = ''; return;
+  }
+  box.innerHTML = a.map(S.view === 'covers' ? tileHTML : itemHTML).join('');
+  $('#pgr').innerHTML = all.length > PP[0] ? `
+    <button class="btn ghost small" data-pg="-1" ${S.page === 0 ? 'disabled' : ''}>&lsaquo; Prev</button>
+    <span class="note">Page ${S.page + 1} of ${pages} · ${fmtN(all.length)} records</span>
+    <button class="btn ghost small" data-pg="1" ${S.page >= pages - 1 ? 'disabled' : ''}>Next &rsaquo;</button>
+    <select data-pp>${PP.map(n => `<option value="${n}"${S.pp === n ? ' selected' : ''}>${n} per page</option>`).join('')}</select>` : '';
+}
+
+/* ---------- stats ---------- */
+function renderStats() {
+  const rs = S.recs;
+  if (!rs.length) { $('#main').innerHTML = '<div class="empty">Stats appear once the first record is saved.</div>'; return; }
+  const c = mkCtx(rs);
+  const copies = rs.reduce((s, r) => s + (+r.copies || 1), 0);
+  const tally = (f, n = 6) => { const m = {}; rs.forEach(r => f(r).forEach(k => { if (k) m[k] = (m[k] || 0) + 1; })); return Object.entries(m).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).slice(0, n); };
+  const hb = arr => { const t = Math.max(1, ...arr.map(a => a[1])); return arr.map(([k, v]) => `<div class="hbar"><span>${esc(k)}</span><div class="bar"><i style="width:${v / t * 100}%"></i></div><span style="width:30px;text-align:right">${v}</span></div>`).join('') || '<div class="note">Nothing to show yet.</div>'; };
+  const now = new Date(), months = [];
+  for (let i = 11; i >= 0; i--) { const d = new Date(now.getFullYear(), now.getMonth() - i, 1); months.push({ k: d.getFullYear() * 12 + d.getMonth(), l: 'JFMAMJJASOND'[d.getMonth()], n: 0 }); }
+  rs.forEach(r => { if (r.discogsId || !r.addedAt) return; const d = new Date(r.addedAt), k = d.getFullYear() * 12 + d.getMonth(), m = months.find(x => x.k === k); if (m) m.n++; });
+  const mx = Math.max(1, ...months.map(m => m.n));
+  const decades = tally(r => { const y = +r.year; return y >= 1900 ? [Math.floor(y / 10) * 10 + 's'] : []; }, 12).sort((a, b) => a[0].localeCompare(b[0]));
+  const conds = tally(r => [(r.mediaCond || '').replace(/\s*\(.*\)/, '')], 8);
+  const fmts = tally(r => (r.format || '').split(',').slice(0, 1).map(x => x.trim()), 6);
+  const withYear = rs.filter(r => +r.year >= 1900).sort((a, b) => a.year - b.year);
+  const old = withYear[0], neu = withYear[withYear.length - 1];
+  const pct = Math.round(c.linked / c.n * 100);
+  $('#main').innerHTML = `
+    <div class="box"><div class="stat">
+      <div><b>${fmtN(c.n)}</b><span>records</span></div>
+      <div><b>${fmtN(copies)}</b><span>copies</span></div>
+      <div><b>${fmtN(c.artists)}</b><span>artists</span></div>
+      <div><b>${pct}%</b><span>linked to Spotify</span></div>
+    </div><div class="bar" style="height:10px"><i style="width:${pct}%"></i></div></div>
+    <div class="box"><h3>Saved by month</h3><div class="months">${months.map(m => `<div>${m.n || ''}<i style="height:${m.n / mx * 80}px"></i>${m.l}</div>`).join('')}</div><div class="note">Records saved by hand. Imports are not counted.</div></div>
+    <div class="box"><h3>By decade</h3>${hb(decades)}</div>
+    <div class="box"><h3>Top artists</h3>${hb(tally(r => [r.artist]))}</div>
+    <div class="box"><h3>Top labels</h3>${hb(tally(r => [r.label]))}</div>
+    <div class="box"><h3>Formats</h3>${hb(fmts)}</div>
+    <div class="box"><h3>Condition</h3>${hb(conds)}<div class="note">${rs.filter(r => !r.mediaCond).length} not graded.</div></div>
+    ${old ? `<div class="box"><h3>Oldest and newest</h3><div class="note">Oldest: ${esc(old.title)} by ${esc(old.artist)} (${esc(old.year)})<br>Newest: ${esc(neu.title)} by ${esc(neu.artist)} (${esc(neu.year)})</div></div>` : ''}`;
+}
+
+/* ---------- trophies ---------- */
+function tcell(x) {
+  const t = x.t, multi = t.t.length > 1;
+  const sub = x.lvl ? (multi ? MET[x.lvl - 1] : 'Earned') : `${fmtN(x.val)} of ${fmtN(t.t[0])}`;
+  return `<button class="tcell ${x.lvl ? '' : 'lock'}" data-trophy="${t.id}">${trophySVG(t, x.lvl, 64)}<b>${esc(t.n)}</b><span>${sub}</span></button>`;
+}
+function renderTrophies() {
+  const st = trophyState(), earned = st.items.filter(x => x.lvl > 0), levels = earned.reduce((n, x) => n + x.lvl, 0);
+  const multi = st.items.filter(x => x.t.t.length > 1), single = st.items.filter(x => x.t.t.length === 1 && (!x.t.h || x.lvl));
+  $('#main').innerHTML = `
+    <div class="box"><div class="stat"><div><b>${earned.length}</b><span>trophies earned</span></div><div><b>${levels}</b><span>levels reached</span></div><div><b>${fmtN(st.c.n)}</b><span>records saved</span></div></div>
+    <p class="note">Trophies are for records saved, and each has up to five levels. Tap one to see what it needs. A level, once reached, is kept even if records are deleted.</p>
+    ${S.metaFail ? '<p class="note err">Trophy history is not being saved. Publish the latest Firestore rules to fix this.</p>' : ''}</div>
+    <div class="box"><h3>Collection</h3><div class="trgrid">${multi.map(tcell).join('')}</div></div>
+    <div class="box"><h3>Special</h3><div class="trgrid">${single.map(tcell).join('')}</div></div>`;
+}
+
+/* ---------- settings ---------- */
+function renderSettings() {
+  const connected = !!SP.tok(), unlinked = S.recs.filter(r => !r.spotifyId).length;
+  $('#main').innerHTML = `
+    <div class="box"><b>Theme</b><div id="theme-grid">${themeGridHTML()}</div><div class="note">Original colour schemes, not affiliated with any band or brand. Saved on this device only.</div></div>
+    <div class="box"><b>Spotify</b>
+      <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
+      <div class="row wrap">${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}</div>
+      <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div></div>
+    <div class="box"><b>Match with Spotify</b>
+      <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly. Close matches are left for you to check by hand.</div>
+      <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
+      <div id="prog" class="note"></div><div class="bar hide" id="bar"><i></i></div></div>
+    <div class="box"><b>Import from Discogs</b>
+      <div class="note">In Discogs, open your collection, choose Export, and download the CSV. Then pick the file here. Records already imported are skipped.</div>
+      <input type="file" id="csv" accept=".csv,text/csv"><div id="imp" class="note"></div></div>
+    <div class="box"><b>Library</b>
+      <label>Records per page</label><select data-pp>${PP.map(n => `<option value="${n}"${S.pp === n ? ' selected' : ''}>${n}</option>`).join('')}</select>
+      <div class="row wrap" style="margin-top:10px"><button class="btn ghost small" data-act="welcome">Show the welcome message again</button></div></div>
+    <div class="box"><b>Backup</b>
+      <div class="row wrap"><button class="btn ghost small" data-act="export">Download JSON backup</button><button class="btn ghost small" data-act="export-csv">Download CSV</button></div></div>
+    <div class="box"><b>Account</b>
+      <div class="note">Signed in as ${esc(S.user.email || '')}</div>
+      <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
+      <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
+}
+
+/* ---------- tabs ---------- */
+function renderTab() { ({ library: renderLibrary, stats: renderStats, trophies: renderTrophies, settings: renderSettings })[S.tab](); }
+function setTab(t) {
+  S.tab = t; document.documentElement.dataset.tab = t;
+  document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
+  document.querySelectorAll('.fab').forEach(f => f.classList.toggle('hide', t !== 'library'));
+  renderTab(); window.scrollTo(0, 0);
+}
+
+function exportCSV() {
+  const cols = ['artist', 'title', 'year', 'label', 'catno', 'barcode', 'format', 'pressing', 'mediaCond', 'sleeveCond', 'copies', 'notes', 'spotifyId', 'discogsId'];
+  const q = v => '"' + String(v ?? '').replace(/"/g, '""') + '"';
+  const rows = [cols.join(',')].concat(S.recs.map(r => cols.map(k => q(r[k])).join(',')));
+  const blob = new Blob([rows.join('\n')], { type: 'text/csv' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'musicbox-' + new Date().toISOString().slice(0, 10) + '.csv'; a.click();
+  setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+}
+
+/* ====================================================================
    Events
    ==================================================================== */
+
+/* ====================================================================
+   What should we spin? Barcode scan. Bell for what your partner added.
+   ==================================================================== */
+let lastSpin = null;
+function spinHTML(r) {
+  return `<div class="spinc" data-open-none>
+    ${r.cover ? `<img class="cov" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : `<div class="cov" style="--h:${hue(r.artist)}"></div>`}
+    <h3>${esc(r.title)}</h3>
+    <div class="note">${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</div>
+    <div class="note">${[r.label, r.pressing, r.format].filter(Boolean).map(esc).join(' · ')}</div></div>
+    <div class="row wrap" style="justify-content:center;margin-top:10px">
+      <button class="btn small" data-act="spin-again">Another</button>
+      ${r.spotifyId ? `<a class="btn green small" style="text-decoration:none;display:inline-flex;align-items:center" href="https://open.spotify.com/album/${esc(r.spotifyId)}" target="_blank" rel="noopener">Open in Spotify</a>` : ''}
+      <button class="btn ghost small" data-open="${esc(r.id)}">Details</button></div>`;
+}
+function spinPick() {
+  const pool = S.recs; let r, i = 0;
+  do { r = pool[Math.floor(Math.random() * pool.length)]; } while (pool.length > 1 && r.id === lastSpin && ++i < 30);
+  lastSpin = r.id; return r;
+}
+function openSpin(again) {
+  if (!S.recs.length) { toast('Save a record first'); return; }
+  const r = spinPick();
+  const body = `<div class="row"><h3 class="grow">What should we spin?</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>${spinHTML(r)}`;
+  if (again && !$('#sheet').classList.contains('hide')) $('#panel').innerHTML = body; else openSheet(body);
+}
+
+let scanStream = null, scanOn = false;
+function stopScan() { scanOn = false; if (scanStream) { scanStream.getTracks().forEach(t => t.stop()); scanStream = null; } }
+function scanMsg(t) { const m = $('#scan-msg'); if (m) m.textContent = t; }
+function openScan() {
+  openSheet(`<div class="row"><h3 class="grow">Scan a barcode</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="scanbox"><video id="scan-v" playsinline muted></video><i></i></div>
+    <div class="note" id="scan-msg">Point the camera at the barcode on the sleeve.</div>
+    <div class="row" style="margin-top:10px"><input id="scan-code" inputmode="numeric" placeholder="Or type the numbers"><button class="btn small" data-act="scan-go">Look up</button></div>`);
+  startScan();
+}
+async function makeDetector() {
+  if ('BarcodeDetector' in window) {
+    try { return new BarcodeDetector({ formats: ['ean_13', 'ean_8', 'upc_a', 'upc_e'] }); } catch (e) {}
+  }
+  const Z = await import('https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/+esm');
+  const hints = new Map(); hints.set(Z.DecodeHintType.POSSIBLE_FORMATS, [Z.BarcodeFormat.EAN_13, Z.BarcodeFormat.EAN_8, Z.BarcodeFormat.UPC_A, Z.BarcodeFormat.UPC_E]);
+  const rd = new Z.MultiFormatReader(); rd.setHints(hints);
+  const cv = document.createElement('canvas'), cx = cv.getContext('2d', { willReadFrequently: true });
+  return {
+    detect: async el => {
+      const w = el.videoWidth, h = el.videoHeight; if (!w) return [];
+      cv.width = w; cv.height = h; cx.drawImage(el, 0, 0, w, h);
+      const px = cx.getImageData(0, 0, w, h).data, lum = new Uint8ClampedArray(w * h);
+      for (let i = 0; i < w * h; i++) lum[i] = (px[i * 4] * 299 + px[i * 4 + 1] * 587 + px[i * 4 + 2] * 114) / 1000;
+      try { return [{ rawValue: rd.decode(new Z.BinaryBitmap(new Z.HybridBinarizer(new Z.RGBLuminanceSource(lum, w, h)))).getText() }]; } catch (e) { return []; }
+    }
+  };
+}
+async function startScan() {
+  scanOn = true;
+  try { scanStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: 'environment' } }, audio: false }); }
+  catch (e) { scanMsg('The camera is not available. Allow camera access, or type the numbers below.'); return; }
+  const v = $('#scan-v'); if (!scanOn || !v) { stopScan(); return; }
+  v.srcObject = scanStream; try { await v.play(); } catch (e) {}
+  let det; try { det = await makeDetector(); } catch (e) { scanMsg('Scanning is not available here. Type the numbers below.'); return; }
+  const tick = async () => {
+    if (!scanOn) return;
+    try { const r = await det.detect(v); if (r && r[0] && r[0].rawValue) { stopScan(); lookupBarcode(r[0].rawValue); return; } } catch (e) {}
+    setTimeout(tick, 250);
+  };
+  tick();
+}
+async function lookupBarcode(raw) {
+  const code = String(raw).replace(/\D/g, '');
+  if (code.length < 8) { toast('That does not look like a barcode'); return; }
+  const dup = S.recs.find(r => r.barcode === code);
+  if (dup) { closeSheet(); toast('Already in the collection'); openRecord(dup.id); return; }
+  scanMsg('Looking up ' + code); stopScan();
+  const pre = { barcode: code, format: 'Vinyl' }; let found = false;
+  try {
+    const res = await fetch('https://musicbrainz.org/ws/2/release/?query=barcode:' + code + '&fmt=json&limit=5');
+    const rel = ((await res.json()).releases || [])[0];
+    if (rel) {
+      found = true; pre.title = rel.title || '';
+      pre.artist = (rel['artist-credit'] || []).map(a => (a.name || '') + (a.joinphrase || '')).join('').trim();
+      pre.year = (rel.date || '').slice(0, 4);
+      const li = (rel['label-info'] || [])[0]; if (li) { pre.label = (li.label && li.label.name) || ''; pre.catno = li['catalog-number'] || ''; }
+      const m = (rel.media || [])[0]; if (m && m.format) pre.format = m.format;
+    }
+  } catch (e) {}
+  closeSheet(); openRecord(null, pre);
+  toast(found ? 'Found it. Check the details, then save.' : 'Not found online. Fill in the details by hand.');
+  if (found && SP.tok()) sheetSearch();
+}
+
+const seenKey = () => 'musicbox_seen_' + (S.user ? S.user.uid : '');
+const byMe = r => (r.addedBy || '').toLowerCase() === (S.user.email || '').toLowerCase();
+const adderName = r => r.addedByName || (r.addedBy || 'Someone').split('@')[0];
+function theirRecs() { return S.recs.filter(r => r.addedBy && !byMe(r) && r.addedAt).sort((a, b) => b.addedAt - a.addedAt); }
+function updateBell() {
+  const b = $('#bellN'); if (!b || !S.user || !S.recsReady) return;
+  if (ls(seenKey(), '') === '') lset(seenKey(), String(Date.now()));
+  const seen = +ls(seenKey(), 0), n = theirRecs().filter(r => r.addedAt > seen).length;
+  b.textContent = n > 99 ? '99+' : n ? String(n) : '';
+}
+function openBell() {
+  const seen = +ls(seenKey(), 0), all = theirRecs(), fresh = all.filter(r => r.addedAt > seen);
+  const list = (fresh.length ? fresh : all.slice(0, 8));
+  const imp = {}, rows = [];
+  for (const r of list) { if (r.discogsId) { const k = adderName(r); imp[k] = (imp[k] || 0) + 1; } else rows.push(r); }
+  const impHTML = Object.entries(imp).map(([k, n]) => `<div class="note" style="padding:8px 0">${esc(k)} imported ${fmtN(n)} record${n === 1 ? '' : 's'} from Discogs.</div>`).join('');
+  const rowHTML = rows.slice(0, 40).map(r => `<button class="res" data-open="${esc(r.id)}">
+    ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
+    <div class="meta"><b>${esc(r.title)}</b><span>${esc(r.artist)}${r.year ? ' · ' + esc(r.year) : ''}</span><span>${esc(adderName(r))} · ${esc(fmtDate(r.addedAt))}</span></div></button>`).join('');
+  openSheet(`<div class="row"><h3 class="grow">${fresh.length ? 'New from your partner' : 'Nothing new'}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    ${!all.length ? '<div class="note">Records your partner saves will show up here.</div>' : (fresh.length ? '' : '<div class="note">You are up to date. Here is what was added most recently.</div>')}
+    ${impHTML}<div style="margin-top:8px">${rowHTML}</div>`);
+  lset(seenKey(), String(Date.now())); updateBell();
+}
+
 document.addEventListener('click', e => {
-  if (e.target.closest('a.play')) return;
   const t = e.target;
   if (t.id === 'sheet') { closeSheet(); return; }
+  if (t.id === 'tdet') { $('#tdet').classList.add('hide'); return; }
+  if (t.closest('#tpop')) { popNext(); return; }
+  if (t.closest('a.play')) return;
+  const tab = t.closest('[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
   const th = t.closest('[data-theme-id]'); if (th) { applyTheme(th.dataset.themeId); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); return; }
-  const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; renderChips(); renderList(); return; }
+  const vw = t.closest('[data-view]'); if (vw) { S.view = vw.dataset.view; lset('musicbox_view', S.view); renderLibrary(); return; }
+  const pg = t.closest('[data-pg]'); if (pg) { S.page += +pg.dataset.pg; renderLibraryList(); toListTop(); return; }
+  const tr = t.closest('[data-trophy]'); if (tr) { showTrophy(tr.dataset.trophy); return; }
+  const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; S.page = 0; $('#chips').innerHTML = chipsHTML(); renderLibraryList(); return; }
   const pick = t.closest('[data-pick]'); if (pick) { pickResult(+pick.dataset.pick); return; }
   const open = t.closest('[data-open]'); if (open) { openRecord(open.dataset.open); return; }
   const b = t.closest('[data-act]'); if (!b) return;
   const act = b.dataset.act;
   if (act === 'add') openRecord(null);
+  else if (act === 'scan') openScan();
+  else if (act === 'scan-go') lookupBarcode(($('#scan-code') || {}).value || '');
+  else if (act === 'spin') openSpin(false);
+  else if (act === 'spin-again') openSpin(true);
+  else if (act === 'bell') openBell();
   else if (act === 'close') closeSheet();
+  else if (act === 'tclose') $('#tdet').classList.add('hide');
   else if (act === 'save') saveDraft();
   else if (act === 'delete') deleteDraft();
   else if (act === 'unlink') unlinkDraft();
   else if (act === 'sp-search') sheetSearch();
   else if (act === 'sp-connect') spConnect();
-  else if (act === 'sp-disconnect') { SP.clear(); toast('Spotify disconnected'); openSettings(); }
-  else if (act === 'settings') openSettings();
+  else if (act === 'sp-disconnect') { SP.clear(); toast('Spotify disconnected'); renderSettings(); }
   else if (act === 'match-all') matchAll();
   else if (act === 'match-stop') S.stop = true;
   else if (act === 'export') exportJSON();
+  else if (act === 'export-csv') exportCSV();
+  else if (act === 'welcome') showWelcome();
+  else if (act === 'ddhide') { lset('musicbox_hide_' + dayKey(new Date()), '1'); renderLibrary(); }
   else if (act === 'signout') { closeSheet(); fb.A.signOut(fb.auth); }
 });
 document.addEventListener('change', e => {
-  if (e.target.id === 'sort') { S.sort = e.target.value; renderList(); }
-  if (e.target.id === 'csv' && e.target.files[0]) importCSV(e.target.files[0]);
+  const t = e.target;
+  if (t.id === 'sort') { S.sort = t.value; S.page = 0; renderLibraryList(); }
+  else if (t.id === 'csv' && t.files[0]) importCSV(t.files[0]);
+  else if (t.matches && t.matches('[data-pp]')) { S.pp = +t.value || 50; lset('musicbox_pp', String(S.pp)); S.page = 0; if (S.tab === 'library') renderLibraryList(); }
 });
-document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; renderList(); } });
-document.addEventListener('keydown', e => { if (e.key === 'Enter' && e.target.id === 'sp-q') { e.preventDefault(); sheetSearch(); } if (e.key === 'Escape') closeSheet(); });
+document.addEventListener('input', e => { if (e.target.id === 'q') { S.q = e.target.value; S.page = 0; renderLibraryList(); } });
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && e.target.id === 'scan-code') { e.preventDefault(); lookupBarcode(e.target.value); }
+  if (e.key === 'Enter' && e.target.id === 'sp-q') { e.preventDefault(); sheetSearch(); }
+  if (e.key === 'Escape') { closeSheet(); $('#tdet').classList.add('hide'); }
+});
 $('#btn-copy-uid').addEventListener('click', () => { navigator.clipboard && navigator.clipboard.writeText(S.user.uid).then(() => toast('Copied')); });
 $('#btn-signin').addEventListener('click', async () => {
   $('#login-err').textContent = '';
@@ -813,18 +1423,25 @@ $('#btn-signin').addEventListener('click', async () => {
 /* ====================================================================
    Start
    ==================================================================== */
+(() => {
+  const hdr = document.querySelector('header.top');
+  const setHH = () => document.documentElement.style.setProperty('--hh', hdr.offsetHeight + 'px');
+  if (window.ResizeObserver) new ResizeObserver(setHH).observe(hdr);
+  window.addEventListener('resize', setHH);
+  window.addEventListener('scroll', () => { const y = window.scrollY, c = document.body.classList; if (y > 90) c.add('scrolled'); else if (y < 30) c.remove('scrolled'); }, { passive: true });
+})();
 (async function main() {
   applyTheme(savedTheme());
-  renderChips();
   await spHandleRedirect();
   try { await fbInit(); } catch (e) { $('#loading').innerHTML = '<h1>Musicbox</h1><p>Could not load. Check your connection and reload.</p>'; return; }
   fb.A.onAuthStateChanged(fb.auth, u => {
     S.user = u;
-    if (!u) { if (unsub) { unsub(); unsub = null; } S.recs = []; show('login'); return; }
+    if (!u) { stopListening(); S.recs = []; show('login'); return; }
     show('loading'); startListening();
-    if (S.pendingToast) { const m = S.pendingToast; S.pendingToast = ''; setTimeout(() => toast(m), 600); }
+    if (S.pendingToast) { const m = S.pendingToast; S.pendingToast = ''; setTimeout(() => toast(m), 900); }
   });
 })();
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) navigator.serviceWorker.register('sw.js').catch(() => {});
 </script>
 </body>
 </html>
