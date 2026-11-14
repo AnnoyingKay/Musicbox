@@ -893,9 +893,9 @@ const TXT = {
   eighties: ['Neon Shelf', 'Rewind, then press play', 'Hey'],
   nineties: ['Flannel', 'Mind the feedback', 'Hey'],
   y2k: ['Millennium', 'Please wait while the shelf loads', 'Hi'],
-  dublin: ['Georgian Door', 'Four green fields of records', 'How are you'],
+  dublin: ['An Doras Seoirseach', 'Ceithre pháirc ghlasa de thaifid', 'Dia duit', 'Fáilte go'],
   madrid: ['Gran Vía', 'Cena a las diez', 'Hola'],
-  murcia: ['La Huerta', 'Lemons on the tree, records on the shelf', 'Hola'],
+  murcia: ['La Huerta', 'Limones en el árbol, discos en la estantería', 'Hola', 'Bienvenido a'],
   seville: ['Azulejo', 'Siesta, then records', 'Buenas tardes'],
   berlin: ['Techno Keller', 'Das Regal ist offen', 'Hallo'],
   tokyo: ['City Pop', 'Neon on, volume up', 'Konnichiwa'],
@@ -1266,7 +1266,7 @@ function todayCard() {
 function showWelcome() {
   const n = firstName(), c = S.recs.length;
   openSheet(`
-    <div class="row"><h3 class="grow">${esc((S.tx || TXT.record)[2])}${n ? ', ' + esc(n) : ''}. Welcome to ${esc((S.tx || TXT.record)[0])}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <div class="row"><h3 class="grow">${esc((S.tx || TXT.record)[2])}${n ? ', ' + esc(n) : ''}. ${esc((S.tx || TXT.record)[3] || 'Welcome to')} ${esc((S.tx || TXT.record)[0])}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
     <p>${c ? `The collection has ${fmtN(c)} record${c === 1 ? '' : 's'} so far.` : 'The collection is empty, which is a fine place to start.'} Everything saved here is shared, and shows up on both phones.</p>
     <ul class="wlist">
       <li><i>1</i><span>Tap + to save a record, or import your Discogs collection in Settings.</span></li>
@@ -1458,7 +1458,7 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 20</div>
+      <div class="note">App version 21</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
