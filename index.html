@@ -349,13 +349,13 @@ const SP = {
 const b64url = buf => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const rand = n => b64url(crypto.getRandomValues(new Uint8Array(n)));
 
-async function spConnect() {
+async function spConnect(stats) {
   if (!SP.configured()) { toast('Add the Spotify client ID at the top of index.html first'); return; }
   const ver = rand(48), state = rand(16);
   localStorage.setItem(SP.K.ver, ver); localStorage.setItem(SP.K.state, state);
   const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver)));
   const u = new URL('https://accounts.spotify.com/authorize');
-  u.search = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP.redirect, code_challenge_method: 'S256', code_challenge: challenge, state }).toString();
+  u.search = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP.redirect, code_challenge_method: 'S256', code_challenge: challenge, state, ...(stats ? { scope: 'user-top-read user-read-recently-played' } : {}) }).toString();
   location.href = u.toString();
 }
 async function spTokenRequest(params) {
@@ -375,7 +375,7 @@ async function spHandleRedirect() {
   if (!state || state !== localStorage.getItem(SP.K.state)) { S.pendingToast = 'Spotify sign in could not be verified'; return; }
   try {
     const j = await spTokenRequest({ grant_type: 'authorization_code', code, redirect_uri: SP.redirect, code_verifier: localStorage.getItem(SP.K.ver) || '' });
-    SP.save({ access: j.access_token, refresh: j.refresh_token, exp: Date.now() + j.expires_in * 1000 });
+    SP.save({ access: j.access_token, refresh: j.refresh_token, exp: Date.now() + j.expires_in * 1000, scope: j.scope || '' });
     S.pendingToast = 'Spotify connected';
   } catch (e) { S.pendingToast = 'Spotify sign in failed'; }
   localStorage.removeItem(SP.K.ver); localStorage.removeItem(SP.K.state);
@@ -386,7 +386,7 @@ async function spToken(force) {
   if (!t.refresh) { SP.clear(); return null; }
   try {
     const j = await spTokenRequest({ grant_type: 'refresh_token', refresh_token: t.refresh });
-    const n = { access: j.access_token, refresh: j.refresh_token || t.refresh, exp: Date.now() + j.expires_in * 1000 };
+    const n = { access: j.access_token, refresh: j.refresh_token || t.refresh, exp: Date.now() + j.expires_in * 1000, scope: j.scope || t.scope || '' };
     SP.save(n); return n.access;
   } catch (e) { SP.clear(); return null; }
 }
@@ -411,6 +411,7 @@ async function spSearch(q) {
 function spErrorText(e) {
   const m = e && e.message;
   if (m === 'NOSP') return 'Connect Spotify first (Settings).';
+  if (m === 'SP401') return 'Spotify needs permission for stats. Tap Connect for listening stats.';
   if (m === 'SP403') return 'Spotify refused the request. Your Spotify account must be added under User Management in the Spotify developer dashboard, and the app owner needs Premium.';
   if (m === 'SP429') return 'Spotify is rate limiting. Try again in a minute.';
   return 'Spotify search failed. Check your connection and try again.';
@@ -1065,6 +1066,207 @@ async function matchAll() {
   if ($('#match-stop')) $('#match-stop').classList.add('hide');
 }
 
+
+/* ====================================================================
+   Listening (private to each person, stored under users/{uid})
+   ==================================================================== */
+const LSD = () => fb.F.collection(fb.db, 'users', S.user.uid, 'musicboxDays');
+const LST = () => fb.F.collection(fb.db, 'users', S.user.uid, 'musicboxTop');
+const LSM = id => fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxMeta', id);
+const spHasStats = () => { const t = SP.tok(); return !!(t && /user-read-recently-played/.test(t.scope || '') && /user-top-read/.test(t.scope || '')); };
+Object.assign(S, { lsDays: new Map(), lsFrom: '9999', lsPer: ls('musicbox_lsper', '30'), lsMode: 'plays', lsRng: 'medium', lsGen: {}, lsMeta: null, lsTop: null, lsBusy: false, lsMsg: '' });
+const dayOf = ts => dayKey(new Date(ts));
+const lsKey = n => norm(n);
+async function lsLoad(sinceKey) {
+  if (sinceKey >= S.lsFrom) return;
+  const q = fb.F.query(LSD(), fb.F.where('day', '>=', sinceKey));
+  const snap = await fb.F.getDocs(q);
+  snap.docs.forEach(d => { const v = d.data(); S.lsDays.set(v.day || d.id, v.plays || []); });
+  S.lsFrom = sinceKey;
+}
+async function lsMetaLoad() {
+  if (S.lsMeta) return;
+  try {
+    const [m, g, t, au] = await Promise.all([fb.F.getDoc(LSM('sync')), fb.F.getDoc(LSM('genres')), fb.F.getDocs(fb.F.query(LST(), fb.F.orderBy('at', 'desc'), fb.F.limit(1))), fb.F.getDoc(LSM('spotifyAuth'))]);
+    S.lsAuth = au.exists() ? au.data() : {};
+    S.lsMeta = m.exists() ? m.data() : {}; S.lsGen = g.exists() ? (g.data().m || {}) : {};
+    S.lsTop = t.docs.length ? t.docs[0].data() : null;
+  } catch (e) { S.lsMeta = {}; S.lsMsg = 'Could not read your saved stats.'; }
+}
+function lsMerge(day, add) {
+  const cur = S.lsDays.get(day) || [], out = cur.slice(); let n = 0;
+  for (const p of add) {
+    if (out.some(x => x.n === p.n && Math.abs(x.ts - p.ts) < 120000)) continue;
+    out.push(p); n++;
+  }
+  if (n) { out.sort((a, b) => a.ts - b.ts); S.lsDays.set(day, out); }
+  return n ? out : null;
+}
+async function lsSaveDays(days) {
+  const arr = [...days];
+  for (let i = 0; i < arr.length; i += 300) {
+    const b = fb.F.writeBatch(fb.db);
+    arr.slice(i, i + 300).forEach(d => b.set(fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxDays', d), { day: d, plays: S.lsDays.get(d) }));
+    await b.commit();
+  }
+}
+const cp = t => ({ id: t.id || '', n: t.name || '', a: (t.artists || []).map(x => x.name), i: (t.artists || []).map(x => x.id), b: (t.album || {}).name || '', bi: (t.album || {}).id || '', c: (((t.album || {}).images || [])[1] || ((t.album || {}).images || [])[0] || {}).url || '' });
+async function lsSync() {
+  if (S.lsBusy) return;
+  if (!spHasStats()) { toast('Connect Spotify for listening stats first'); return; }
+  S.lsBusy = true; S.lsMsg = 'Syncing'; lsRender();
+  try {
+    await lsMetaLoad();
+    try { const m = await fb.F.getDoc(LSM('sync')); if (m.exists()) S.lsMeta = m.data(); } catch (e) {}
+    const since = dayKey(new Date(Date.now() - 400 * 864e5)); await lsLoad(S.lsFrom < since ? S.lsFrom : since);
+    // recent plays
+    const after = S.lsMeta.last || 0, prm = { limit: '50' }; if (after) prm.after = String(after);
+    const rp = await spGet('https://api.spotify.com/v1/me/player/recently-played', prm);
+    const items = (rp.items || []).filter(x => x && x.track && x.track.name);
+    const byDay = new Map();
+    items.forEach(x => { const ts = Date.parse(x.played_at), p = { ts, ...cp(x.track), d: x.track.duration_ms || 0 }; const k = dayOf(ts); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); });
+    const changed = new Set(); let added = 0;
+    for (const k of byDay.keys()) { try { const d = await fb.F.getDoc(fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxDays', k)); if (d.exists()) S.lsDays.set(k, d.data().plays || []); } catch (e) {} }
+    for (const [k, ps] of byDay) { const r = lsMerge(k, ps); if (r) { changed.add(k); added += ps.length; } }
+    if (changed.size) await lsSaveDays(changed);
+    const last = items.reduce((m, x) => Math.max(m, Date.parse(x.played_at)), after);
+    const gap = after && items.length >= 50;
+    // top lists
+    const snap = { at: Date.now(), day: dayKey(new Date()) };
+    for (const rng of ['short', 'medium', 'long']) {
+      const tr = (await spGet('https://api.spotify.com/v1/me/top/tracks', { time_range: rng + '_term', limit: '50' })).items || [];
+      const ar = (await spGet('https://api.spotify.com/v1/me/top/artists', { time_range: rng + '_term', limit: '50' })).items || [];
+      snap[rng] = { t: tr.map(t => cp(t)), a: ar.map(a => ({ id: a.id, n: a.name, g: a.genres || [], c: ((a.images || [])[1] || (a.images || [])[0] || {}).url || '' })) };
+      ar.forEach(a => { if ((a.genres || []).length) S.lsGen[lsKey(a.name)] = a.genres; });
+    }
+    await fb.F.setDoc(fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxTop', snap.day), snap);
+    S.lsTop = snap;
+    S.lsMeta = { ...S.lsMeta, last, syncedAt: Date.now() };
+    await fb.F.setDoc(LSM('sync'), S.lsMeta, { merge: true });
+    if (S.lsAuth && S.lsAuth.enabled && SP.tok()) { try { await fb.F.setDoc(LSM('spotifyAuth'), { refresh: SP.tok().refresh }, { merge: true }); } catch (e) {} }
+    await lsGenres(25);
+    S.lsMsg = `Synced. ${added} new play${added === 1 ? '' : 's'}.` + (gap ? ' Spotify only shares the last 50 plays, so some plays since the last sync were missed. Sync more often to keep counts exact.' : '');
+  } catch (e) { S.lsMsg = spErrorText(e); if (!/^(NOSP|SP4)/.test(e.message || '')) S.lsMsg = 'Sync failed. Check your connection and try again.'; }
+  S.lsBusy = false; lsRender();
+}
+async function lsGenres(limit) {
+  const cnt = new Map(), ids = new Map();
+  for (const ps of S.lsDays.values()) for (const p of ps) (p.a || []).forEach((n, i) => { const k = lsKey(n); cnt.set(k, (cnt.get(k) || 0) + 1); if (!ids.has(k)) ids.set(k, { n, id: (p.i || [])[i] || '' }); });
+  const todo = [...cnt.entries()].filter(([k]) => !S.lsGen[k]).sort((a, b) => b[1] - a[1]).slice(0, limit);
+  if (!todo.length) return;
+  for (const [k] of todo) {
+    const { n, id } = ids.get(k);
+    try {
+      let g = null;
+      if (id) { const a = await spGet('https://api.spotify.com/v1/artists/' + id, {}); g = a.genres || []; }
+      else { const r = await spGet('https://api.spotify.com/v1/search', { q: n, type: 'artist', limit: '5' }); const a = ((r.artists || {}).items || []).find(x => lsKey(x.name) === k) || ((r.artists || {}).items || [])[0]; g = a ? (a.genres || []) : []; }
+      S.lsGen[k] = g.length ? g : ['unknown'];
+    } catch (e) { if (/^(NOSP|SP40)/.test(e.message || '')) break; }
+    await sleep(150);
+  }
+  try { await fb.F.setDoc(LSM('genres'), { m: S.lsGen }, { merge: true }); } catch (e) {}
+}
+function lsPlays(per) {
+  const lim = per === 'all' ? '0000' : dayKey(new Date(Date.now() - (+per - 1) * 864e5)), out = [];
+  for (const [d, ps] of S.lsDays) if (d >= lim) out.push(...ps);
+  return out;
+}
+function lsAgg(ps) {
+  const song = new Map(), alb = new Map(), art = new Map(), gen = new Map(); let ms = 0;
+  const add = (m, k, v) => { const e = m.get(k); if (e) e.c++; else m.set(k, { ...v, c: 1 }); };
+  ps.forEach(p => {
+    ms += p.d || 0;
+    const a0 = (p.a || [])[0] || '';
+    add(song, p.id || lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
+    if (p.b) add(alb, lsKey(p.b + '|' + a0), { n: p.b, s: a0, c0: p.c });
+    (p.a || []).forEach(n => add(art, lsKey(n), { n, s: '' }));
+    const gs = new Set(); (p.a || []).forEach(n => (S.lsGen[lsKey(n)] || []).forEach(g => { if (g !== 'unknown') gs.add(g); }));
+    gs.forEach(g => add(gen, g, { n: g, s: '' }));
+  });
+  const top = (m, n = 10) => [...m.values()].sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, n);
+  return { n: ps.length, ms, songs: top(song), albums: top(alb), artists: top(art), genres: top(gen), nSongs: song.size, nArt: art.size };
+}
+function lsList(title, arr, unit = 'plays') {
+  if (!arr.length) return '';
+  const t = Math.max(1, arr[0].c);
+  return `<div class="box"><b>${title}</b>${arr.map((x, i) => `<div class="hbar" style="align-items:center">${x.c0 ? `<img class="cov" style="width:34px;height:34px;flex:none" loading="lazy" referrerpolicy="no-referrer" src="${esc(x.c0)}" alt="" onerror="this.style.visibility='hidden'">` : ''}<span style="flex:1;min-width:0"><span style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${i + 1}. ${esc(x.n)}</span>${x.s ? `<span class="note" style="display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(x.s)}</span>` : ''}<span class="bar"><i style="width:${x.c / t * 100}%"></i></span></span><span style="width:46px;text-align:right">${fmtN(x.c)}</span></div>`).join('')}</div>`;
+}
+function lsRender() {
+  const box = $('#lsbox'); if (!box) return;
+  if (!spHasStats()) { box.innerHTML = `<div class="box"><b>Your listening stats</b><div class="note">Private to you. Your partner cannot see them. Spotify needs one extra permission, so connect once more.</div><div class="row wrap" style="margin-top:8px"><button class="btn green small" data-act="ls-connect">Connect for listening stats</button></div></div>`; return; }
+  const per = S.lsPer, pc = (v, l) => `<button class="chip ${per === v ? 'on' : ''}" data-act="ls-per" data-v="${v}">${l}</button>`;
+  const mc = (v, l) => `<button class="chip ${S.lsMode === v ? 'on' : ''}" data-act="ls-mode" data-v="${v}">${l}</button>`;
+  const when = S.lsMeta && S.lsMeta.syncedAt ? 'Last synced ' + new Date(S.lsMeta.syncedAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : 'Not synced yet';
+  let h = `<div class="row wrap" style="gap:8px;align-items:center"><button class="btn small" data-act="ls-sync" ${S.lsBusy ? 'disabled' : ''}>${S.lsBusy ? 'Syncing' : 'Sync!'}</button><span class="note grow">${when}</span></div>${S.lsMsg ? `<div class="note" style="margin:6px 0">${esc(S.lsMsg)}</div>` : ''}<div class="row wrap" style="gap:8px;margin:10px 0">${mc('plays', 'Play counts')}${mc('top', 'Spotify top')}</div>`;
+  if (S.lsMode === 'plays') {
+    const a = lsAgg(lsPlays(per));
+    h += `<div class="row wrap" style="gap:8px;margin-bottom:10px">${pc('7', '7 days')}${pc('30', '30 days')}${pc('365', '12 months')}${pc('all', 'All time')}</div>`;
+    h += a.n ? `<div class="box"><b>${fmtN(a.n)} plays</b><div class="note">${a.ms < 72e5 ? fmtN(Math.round(a.ms / 6e4)) + ' minutes' : fmtN(Math.round(a.ms / 36e5)) + ' hours'} · ${fmtN(a.nSongs)} different songs · ${fmtN(a.nArt)} artists</div></div>` + lsList('Top songs', a.songs) + lsList('Top albums', a.albums) + lsList('Top artists', a.artists) + (a.genres.length ? lsList('Top genres', a.genres) : '<div class="note">Genres appear after a few syncs.</div>') : `<div class="empty">No plays saved for this period yet. Counts start with your first Sync!, or import your Spotify history below.</div>`;
+  } else {
+    const r = S.lsRng, t = S.lsTop && S.lsTop[r];
+    const rc = (v, l) => `<button class="chip ${r === v ? 'on' : ''}" data-act="ls-rng" data-v="${v}">${l}</button>`;
+    h += `<div class="row wrap" style="gap:8px;margin-bottom:10px">${rc('short', '4 weeks')}${rc('medium', '6 months')}${rc('long', '12 months')}</div>`;
+    if (!t) h += '<div class="empty">Tap Sync! to load your Spotify top lists.</div>';
+    else {
+      const rank = arr => arr.map((x, i) => ({ ...x, c: arr.length - i }));
+      const albs = new Map(); t.t.forEach((x, i) => { if (!x.b) return; const k = lsKey(x.b + '|' + (x.a || [])[0]); const e = albs.get(k); if (e) e.c += 51 - i; else albs.set(k, { n: x.b, s: (x.a || [])[0] || '', c0: x.c, c: 51 - i }); });
+      const gen = new Map(); t.a.forEach((x, i) => (x.g || []).forEach(g => { const e = gen.get(g); if (e) e.c++; else gen.set(g, { n: g, s: '', c: 1 }); }));
+      const flat = lsList('Top songs', t.t.slice(0, 20).map((x, i) => ({ n: x.n, s: (x.a || []).join(', '), c0: x.c, c: 20 - i })), '').replace(/<span style="width:46px;text-align:right">[^<]*<\/span>/g, '');
+      const flatA = lsList('Top artists', t.a.slice(0, 20).map((x, i) => ({ n: x.n, s: '', c0: x.c, c: 20 - i }))).replace(/<span style="width:46px;text-align:right">[^<]*<\/span>/g, '');
+      const flatB = lsList('Albums with most of your top songs', [...albs.values()].sort((a, b) => b.c - a.c).slice(0, 10)).replace(/<span style="width:46px;text-align:right">[^<]*<\/span>/g, '');
+      const flatG = lsList('Genres of your top artists', [...gen.values()].sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, 10));
+      h += flat + flatB + flatA + flatG + `<div class="note">Spotify ranks these by how much you listen. It does not share play counts here. Saved ${esc(new Date(S.lsTop.at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short' }))}.</div>`;
+    }
+  }
+  h += `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>`;
+  const au = S.lsAuth || {}, ran = au.ranAt ? new Date(au.ranAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  h += `<div class="box"><b>Collect plays in the background</b><div class="note">Spotify only shares your last 50 plays, so while the app is closed nothing is collected. A free scheduled job on GitHub can do it for you every 30 minutes. Turning this on saves your Spotify login token privately under your account so the job can use it. Turn it off any time.</div>
+    <div class="row wrap" style="margin-top:8px">${au.enabled ? '<button class="btn ghost small" data-act="ls-bg-off">Turn off</button>' : '<button class="btn small" data-act="ls-bg-on">Turn on</button>'}</div>
+    <div class="note">${au.enabled ? (ran ? 'Last collected ' + esc(ran) + (au.lastAdded != null ? ', ' + au.lastAdded + ' new' : '') + '.' : 'On. Waiting for the first run (set up the GitHub job first).') : 'Off.'}</div>${au.error ? `<div class="note err">${esc(au.error)}</div>` : ''}</div>`;
+  h += `<div class="note" style="margin-top:8px">Without the background job, Musicbox adds new plays each time you open this page or tap Sync!.</div>`;
+  box.innerHTML = h;
+}
+async function lsBg(on) {
+  try {
+    const t = SP.tok();
+    if (on && !(t && t.refresh)) { toast('Reconnect Spotify first'); return; }
+    await fb.F.setDoc(LSM('spotifyAuth'), on ? { enabled: true, refresh: t.refresh, at: Date.now(), error: '' } : { enabled: false, refresh: '' }, { merge: true });
+    S.lsAuth = { ...(S.lsAuth || {}), enabled: on, error: '' };
+    toast(on ? 'Background collection is on' : 'Background collection is off'); lsRender();
+  } catch (e) { toast('Could not save that'); }
+}
+async function lsEnsure(force) {
+  if (!spHasStats() || !S.user) return;
+  await lsMetaLoad();
+  try { await lsLoad(S.lsPer === 'all' ? '0000' : dayKey(new Date(Date.now() - (+S.lsPer - 1) * 864e5))); } catch (e) { S.lsMsg = 'Could not read your saved plays.'; }
+  lset('musicbox_lsper', S.lsPer); lsRender();
+  if (!force && !S.lsBusy && (!S.lsMeta.syncedAt || Date.now() - S.lsMeta.syncedAt > 20 * 60000)) lsSync();
+}
+async function lsImportFiles(files) {
+  const out = $('#lsimp'), say = t => { S.lsImp = t; if ($('#lsimp')) $('#lsimp').textContent = t; };
+  if (!files.length || !S.user) return;
+  try {
+    say('Reading'); await lsMetaLoad(); S.lsFrom = '9999'; await lsLoad('0000');
+    const byDay = new Map(); let seen = 0, used = 0;
+    for (const f of files) {
+      const arr = JSON.parse(await f.text()); if (!Array.isArray(arr)) continue;
+      for (const e of arr) {
+        seen++;
+        if (!e || !e.master_metadata_track_name || !(e.ms_played >= 30000)) continue;
+        const ts = Date.parse(e.ts); if (!ts) continue;
+        const p = { ts, id: String(e.spotify_track_uri || '').split(':').pop(), n: e.master_metadata_track_name, a: [e.master_metadata_album_artist_name || ''].filter(Boolean), b: e.master_metadata_album_album_name || '', d: e.ms_played, imp: 1 };
+        const k = dayOf(ts); if (!byDay.has(k)) byDay.set(k, []); byDay.get(k).push(p); used++;
+      }
+    }
+    say(`Found ${fmtN(used)} plays of ${fmtN(seen)} entries. Saving`);
+    const changed = new Set(); let added = 0;
+    for (const [k, ps] of byDay) { const before = (S.lsDays.get(k) || []).length, r = lsMerge(k, ps); if (r) { changed.add(k); added += r.length - before; } }
+    await lsSaveDays(changed);
+    say(`Imported ${fmtN(added)} new plays across ${fmtN(changed.size)} days.`);
+    lsRender(); lsGenres(40).then(lsRender);
+  } catch (e) { say('Could not read that file. Pick the Streaming_History_Audio .json files from Spotify.'); }
+}
+
 function exportJSON() {
   const data = S.recs.map(({ id, ...r }) => ({ id, ...r }));
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
@@ -1416,7 +1618,12 @@ function renderLibraryList() {
 }
 
 /* ---------- stats ---------- */
+function statsSeg() { return `<div class="row" style="gap:8px;margin-bottom:12px"><button class="chip ${S.sv === 'listen' ? '' : 'on'}" data-act="sv-lib">Library</button><button class="chip ${S.sv === 'listen' ? 'on' : ''}" data-act="sv-listen">Listening</button></div>`; }
 function renderStats() {
+  if (S.sv === 'listen') { $('#main').innerHTML = statsSeg() + '<div id="lsbox"></div>'; lsRender(); lsEnsure(); return; }
+  renderStatsLib(); const m = $('#main'); if (m) m.insertAdjacentHTML('afterbegin', statsSeg());
+}
+function renderStatsLib() {
   const rs = S.recs;
   if (!rs.length) { $('#main').innerHTML = '<div class="empty">Stats appear once the first record is saved.</div>'; return; }
   const split = v => String(v || '').split(',').map(x => x.trim()).filter(x => x && x !== '-');
@@ -1495,7 +1702,7 @@ function renderSettings() {
     <div class="box"><b>Account</b>
       <div class="note">Signed in as ${esc(S.user.email || '')}</div>
       <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 22</div>
+      <div class="note">App version 24</div>
       <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
 }
 
@@ -1728,7 +1935,7 @@ async function spGet(url, params) {
     if (r.status === 429) { await sleep((+r.headers.get('retry-after') || 2) * 1000 + 300); continue; }
     if (r.status === 401 && !refreshed) { refreshed = true; tk = await spToken(true); if (!tk) throw new Error('NOSP'); continue; }
     if (!r.ok) throw new Error('SP' + r.status);
-    return r.json();
+    if (r.status === 204) return {}; return r.json();
   }
   throw new Error('SP429');
 }
@@ -2086,8 +2293,18 @@ function onClickInner(e) {
   else if (act === 'annx') { markSeen(); refreshLibrary(); }
   else if (act === 'fav-trophies') openFavTrophies();
   else if (act === 'fav-vinyls') openFavVinyls();
+  else if (act === 'sv-lib') { S.sv = 'lib'; renderStats(); }
+  else if (act === 'sv-listen') { S.sv = 'listen'; S.lsDays.clear(); S.lsFrom = '9999'; renderStats(); }
+  else if (act === 'ls-connect') spConnect(true);
+  else if (act === 'ls-bg-on') lsBg(true);
+  else if (act === 'ls-bg-off') lsBg(false);
+  else if (act === 'ls-sync') lsSync();
+  else if (act === 'ls-per') { S.lsPer = b.dataset.v; lsRender(); lsEnsure(true); }
+  else if (act === 'ls-mode') { S.lsMode = b.dataset.v; lsRender(); }
+  else if (act === 'ls-rng') { S.lsRng = b.dataset.v; lsRender(); }
   else if (act === 'their-wish') openTheirWish(b.dataset.uid);
   else if (act === 'cover-all') coverAll();
+  else if (act === 'ls-import') { const f = $('#lsfile'); if (f) f.click(); }
   else if (act === 'cover-stop') S.stop = true;
   else if (act === 'themes') openThemes();
   else if (act === 'cov-clear') { if (S.draft) { S.draft.cover = ''; updateCoverPrev(); } }
@@ -2120,6 +2337,7 @@ function onClickInner(e) {
 }
 document.addEventListener('change', e => {
   const t = e.target;
+  if (t.id === 'lsfile') { lsImportFiles([...t.files]); t.value = ''; return; }
   if (t.id === 'sort') { S.sort = t.value; lset('musicbox_sort', S.sort); S.page = 0; renderLibraryList(); }
   else if (t.dataset && t.dataset.fl) { S.f[t.dataset.fl] = t.value; S.page = 0; $('#chips').innerHTML = chipsHTML(); $('#fpanel').innerHTML = fpanelHTML(); renderLibraryList(); }
   else if (t.id === 'nick') { saveMine({ nick: t.value.trim().slice(0, 20) }); toast('Saved'); }
