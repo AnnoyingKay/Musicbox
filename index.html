@@ -74,7 +74,12 @@ nav.tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
 
 /* ---------- library ---------- */
 .ctl{position:sticky;top:var(--hh,0px);z-index:5;background:var(--bg);padding:8px 0 6px;border-bottom:1px solid var(--line)}
+.ltxt .item .cov{display:none}
+#lst.covers.gsm{grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 8px}
+#lst.gsm .tile b{font-size:12px;margin-top:4px}#lst.gsm .tile span.sub{font-size:11px}#lst.gsm .tile a.play{width:26px;height:26px;font-size:10px;right:4px;top:4px}#lst.gsm .tile .nl{font-size:9px;padding:0 5px;left:4px;top:4px}
+.seg.views button{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center}
 .fpanel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.fpanel select{min-height:38px;padding:6px 8px;width:100%}.fpanel label{font-size:12px;color:var(--dim);display:block;margin-bottom:2px}.ann{background:var(--card);border:1px solid var(--acc);border-radius:var(--radius);padding:12px;margin-top:12px;box-shadow:var(--bevel)}.ann p{margin:4px 0;font-size:14px}
+.adv summary{cursor:pointer;list-style:none;padding:2px 0}.adv summary::-webkit-details-marker{display:none}.adv summary b::after{content:' ▾';color:var(--dim)}.adv[open] summary b::after{content:' ▴'}.advin{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
 .subtabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}.subtabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 10px;min-height:36px;font:inherit;font-size:14px;cursor:pointer}.subtabs button.on{color:var(--txt);border-bottom-color:var(--acc);font-weight:600}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{border:1px solid var(--line);background:transparent;border-radius:calc(var(--radius)*4);padding:6px 12px;font-size:14px;white-space:nowrap;box-shadow:var(--bevel)}
@@ -216,6 +221,9 @@ a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0
 .favv{width:76px;font-size:12px;cursor:pointer}
 .favv .note{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 @media (min-width:1100px){html[data-tab=household] main{column-count:2;column-gap:14px}.hh{break-inside:avoid}}
+@media (min-width:760px){#lst.covers.gsm{grid-template-columns:repeat(6,minmax(0,1fr));gap:14px 10px}}
+@media (min-width:1100px){#lst.covers.gsm{grid-template-columns:repeat(9,minmax(0,1fr))}}
+@media (min-width:1500px){#lst.covers.gsm{grid-template-columns:repeat(12,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -457,6 +465,7 @@ function startListening() {
   unsubR = fb.F.onSnapshot(col(), snap => {
     S.recs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     S.recsReady = true;
+    { const md = snap.metadata; if (!md || (!md.fromCache && !md.hasPendingWrites)) { S.lastSync = Date.now(); S.offline = false; } updateSyncLine(); }
     if (!S.started) { S.started = true; show('app'); setTab(S.tab); welcomeCheck(); }
     else if (S.tab === 'library') refreshLibrary();
     else if (S.tab === 'wish') refreshWish();
@@ -1598,6 +1607,14 @@ function visibleRecs() {
 const playLink = r => r.spotifyId ? `<a class="play" href="https://open.spotify.com/album/${esc(r.spotifyId)}" data-spid="${esc(r.spotifyId)}" target="_blank" rel="noopener" aria-label="Open in Spotify">&#8599;</a>` : '';
 const verTag = r => { const n = S.vk && S.vk.get(wk(r.artist, r.title)); return n > 1 ? `<span class="tag" style="display:inline;border-color:var(--acc);color:var(--acc)">${n} versions</span> ` : ''; };
 const byTag = r => (S.people.length > 1 && r.addedBy) ? ' · ' + esc(adderName(r)) : '';
+const VIEWS = [
+  ['ltxt', 'List without images', '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M3 5h14M3 10h14M3 15h14"/></svg>'],
+  ['list', 'List with images', '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="2.5" y="3.5" width="4" height="4" rx=".8"/><rect x="2.5" y="12.5" width="4" height="4" rx=".8"/><path d="M10 5.5h7.5M10 14.5h7.5"/></svg>'],
+  ['gsm', 'Smaller grid', '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="4" height="4"/><rect x="8" y="2.5" width="4" height="4"/><rect x="13.5" y="2.5" width="4" height="4"/><rect x="2.5" y="8" width="4" height="4"/><rect x="8" y="8" width="4" height="4"/><rect x="13.5" y="8" width="4" height="4"/><rect x="2.5" y="13.5" width="4" height="4"/><rect x="8" y="13.5" width="4" height="4"/><rect x="13.5" y="13.5" width="4" height="4"/></svg>'],
+  ['covers', 'Bigger grid', '<svg viewBox="0 0 20 20" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2.5" y="2.5" width="6.5" height="6.5"/><rect x="11" y="2.5" width="6.5" height="6.5"/><rect x="2.5" y="11" width="6.5" height="6.5"/><rect x="11" y="11" width="6.5" height="6.5"/></svg>']
+];
+const VIEW_IDS = VIEWS.map(v => v[0]);
+const isGrid = () => S.view === 'gsm' || S.view === 'covers';
 function itemHTML(r) {
   return `<div class="item" data-open="${esc(r.id)}" style="--h:${hue(r.artist)}">
     ${r.cover ? `<img class="cov" loading="lazy" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="">` : '<div class="cov"></div>'}
@@ -1620,7 +1637,7 @@ function renderLibrary() {
       <div class="chips" id="chips">${chipsHTML()}</div><div class="fpanel" id="fpanel">${fpanelHTML()}</div>
       <div class="row2">
         <select id="sort">${SORTS.map(([v, t]) => `<option value="${v}"${S.sort === v ? ' selected' : ''}>${t}</option>`).join('')}</select>
-        <div class="seg"><button data-view="list" class="${S.view === 'list' ? 'on' : ''}">List</button><button data-view="covers" class="${S.view === 'covers' ? 'on' : ''}">Covers</button></div>
+        <div class="seg views">${VIEWS.map(([k, l, ic]) => `<button data-view="${k}" class="${S.view === k ? 'on' : ''}" aria-label="${l}" title="${l}">${ic}</button>`).join('')}</div>
       </div>
     </div>
     <div id="lst"></div><div id="pgr"></div>`;
@@ -1640,12 +1657,12 @@ function renderLibraryList() {
   const all = visibleRecs(), pages = Math.max(1, Math.ceil(all.length / S.pp));
   if (S.page >= pages) S.page = pages - 1; if (S.page < 0) S.page = 0;
   const a = all.slice(S.page * S.pp, (S.page + 1) * S.pp), box = $('#lst');
-  box.className = S.view;
+  box.className = S.view === 'ltxt' ? 'list ltxt' : S.view === 'gsm' ? 'covers gsm' : S.view;
   if (!a.length) {
     box.innerHTML = `<div class="empty">${S.recs.length ? 'Nothing matches.' : 'Tap + to save a record, or import your Discogs collection in Settings.'}</div>`;
     $('#pgr').innerHTML = ''; return;
   }
-  box.innerHTML = a.map(S.view === 'covers' ? tileHTML : itemHTML).join('');
+  box.innerHTML = a.map(isGrid() ? tileHTML : itemHTML).join('');
   $('#pgr').innerHTML = all.length > PP[0] ? `
     <button class="btn ghost small" data-pg="-1" ${S.page === 0 ? 'disabled' : ''}>&lsaquo; Prev</button>
     <span class="note">Page ${S.page + 1} of ${pages} · ${fmtN(all.length)} records</span>
@@ -1702,31 +1719,44 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
+const APP_VERSION = 28;
+function syncLineText() {
+  if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
+  if (!S.lastSync) return 'Checking';
+  return 'Up to date at ' + new Date(S.lastSync).toLocaleTimeString('en-IE', { hour: '2-digit', minute: '2-digit' });
+}
+function updateSyncLine() { const e = $('#syncline'); if (e) e.textContent = syncLineText(); }
+async function syncNow() {
+  const b = $('#syncnow'); if (b) { b.disabled = true; b.textContent = 'Syncing'; }
+  try {
+    await Promise.race([fb.F.waitForPendingWrites(fb.db), new Promise((_, no) => setTimeout(() => no(new Error('offline')), 8000))]);
+    await Promise.all([fb.F.getDocsFromServer(col()), fb.F.getDocsFromServer(wcol()), fb.F.getDocsFromServer(pcol())]);
+    S.offline = false; S.lastSync = Date.now(); toast('Up to date');
+  } catch (e) { S.offline = true; toast('Offline. Changes will upload when you are back online'); }
+  if ($('#syncnow')) { $('#syncnow').disabled = false; $('#syncnow').textContent = 'Sync now'; }
+  updateSyncLine();
+}
 function renderSettings() {
-  const connected = !!SP.tok(), unlinked = S.recs.filter(r => !r.spotifyId).length;
+  const connected = !!SP.tok(), unlinked = S.recs.filter(r => !r.spotifyId).length, noCov = S.recs.filter(r => !r.cover).length;
   $('#main').innerHTML = `
-    <div class="box"><b>Theme</b><div id="theme-grid">${themeGridHTML()}</div><div class="note">Original colour schemes, not affiliated with any band or brand. Saved on this device only.</div></div>
-    <div class="box"><b>Spotify</b>
-      <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
-      <div class="row wrap">${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}</div>
-      <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div></div>
-    <div class="box"><b>Discogs lookup for barcodes</b>
-      <div class="note">Scanning finds far more with a free Discogs token. On discogs.com open Settings, then Developers, then Generate new token, and paste it here. It is stored on this device only.</div>
-      <input id="dtoken" type="password" placeholder="Discogs token" autocomplete="off" value="${esc(dTok())}">
-      <div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="dtoken-save">Save token</button>${dTok() ? '<button class="btn ghost small" data-act="dtoken-clear">Remove</button>' : ''}</div></div>
-    <div class="box"><b>Fill details from Discogs</b>
-      <div class="note">Adds genres, country and any missing label, catalogue number or colour to records that came from your Discogs import. About one record a second, so keep this page open.</div>
-      <div class="row wrap"><button class="btn small" data-act="fill-dc" ${dTok() && S.recs.some(r => r.discogsId && !r.genres) ? '' : 'disabled'}>Fill missing details</button><button class="btn ghost small hide" id="fill-stop" data-act="fill-stop">Stop</button></div>
-      <div id="fill-prog" class="note">${dTok() ? '' : 'Needs a Discogs token above.'}</div></div>
-    <div class="box"><b>Add covers automatically</b>
-      <div class="note">Finds a cover for ${S.recs.filter(r => !r.cover).length} record${S.recs.filter(r => !r.cover).length === 1 ? '' : 's'} without one. It uses Spotify first, then Discogs. Covers you added yourself are never replaced.</div>
-      <div class="row wrap"><button class="btn small" data-act="cover-all" ${S.recs.some(r => !r.cover) && (connected || dTok()) ? '' : 'disabled'}>Add covers</button><button class="btn ghost small hide" id="cover-stop" data-act="cover-stop">Stop</button></div>
-      <div id="cprog" class="note">${connected || dTok() ? '' : 'Needs Spotify or a Discogs token.'}</div><div class="bar hide" id="cbar"><i></i></div></div>
+    <div class="box"><b>Musicbox version ${APP_VERSION}</b></div>
+    <div class="box"><b>Sync across devices</b>
+      <div class="note">Signed in as ${esc(S.user.email || '')}</div>
+      <div class="note" id="syncline">${esc(syncLineText())}</div>
+      <div class="row wrap" style="margin-top:8px"><button class="btn small" id="syncnow" data-act="sync-now">Sync now</button><button class="btn ghost small" data-act="export">Download JSON backup</button><button class="btn ghost small" data-act="signout">Sign out</button></div></div>
     <div class="box"><b>Match with Spotify</b>
       <div class="note">Links ${unlinked} unlinked record${unlinked === 1 ? '' : 's'} when the artist and title match exactly, and fills in the cover. Anything it gets wrong you can change in the record.</div>
       <label class="note" style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" id="loose" style="width:auto;min-height:0"> Also accept close matches (for example Deluxe or Remastered editions)</label>
       <div class="row wrap"><button class="btn small" data-act="match-all" ${unlinked && connected ? '' : 'disabled'}>Match all</button><button class="btn ghost small hide" id="match-stop" data-act="match-stop">Stop</button></div>
-      <div id="prog" class="note"></div><div class="bar hide" id="bar"><i></i></div></div>
+      <div id="prog" class="note">${connected ? '' : 'Needs Spotify connected. Open Advanced below.'}</div><div class="bar hide" id="bar"><i></i></div></div>
+    <div class="box"><b>Add covers automatically</b>
+      <div class="note">Finds a cover for ${noCov} record${noCov === 1 ? '' : 's'} without one. It uses Spotify first, then Discogs. Covers you added yourself are never replaced.</div>
+      <div class="row wrap"><button class="btn small" data-act="cover-all" ${noCov && (connected || dTok()) ? '' : 'disabled'}>Add covers</button><button class="btn ghost small hide" id="cover-stop" data-act="cover-stop">Stop</button></div>
+      <div id="cprog" class="note">${connected || dTok() ? '' : 'Needs Spotify or a Discogs token. Open Advanced below.'}</div><div class="bar hide" id="cbar"><i></i></div></div>
+    <div class="box"><b>Fill details from Discogs</b>
+      <div class="note">Adds genres, country and any missing label, catalogue number or colour to records that came from your Discogs import. About one record a second, so keep this page open.</div>
+      <div class="row wrap"><button class="btn small" data-act="fill-dc" ${dTok() && S.recs.some(r => r.discogsId && !r.genres) ? '' : 'disabled'}>Fill missing details</button><button class="btn ghost small hide" id="fill-stop" data-act="fill-stop">Stop</button></div>
+      <div id="fill-prog" class="note">${dTok() ? '' : 'Needs a Discogs token. Open Advanced below.'}</div></div>
     <div class="box"><b>Import from Discogs</b>
       <div class="note">In Discogs, open your collection, choose Export, and download the CSV. Then pick the file here. Records already imported are skipped.</div>
       <input type="file" id="csv" accept=".csv,text/csv"><div id="imp" class="note"></div></div>
@@ -1734,12 +1764,18 @@ function renderSettings() {
       <label>Records per page</label><select data-pp>${PP.map(n => `<option value="${n}"${S.pp === n ? ' selected' : ''}>${n}</option>`).join('')}</select>
       <div class="row wrap" style="margin-top:10px"><button class="btn ghost small" data-act="welcome">Show the welcome message again</button></div></div>
     <div class="box"><b>Backup</b>
-      <div class="row wrap"><button class="btn ghost small" data-act="export">Download JSON backup</button><button class="btn ghost small" data-act="export-csv">Download CSV</button></div></div>
-    <div class="box"><b>Account</b>
-      <div class="note">Signed in as ${esc(S.user.email || '')}</div>
-      <div class="note">Account ID: <code>${esc(S.user.uid)}</code></div>
-      <div class="note">App version 26</div>
-      <div class="row wrap"><button class="btn ghost small" data-act="signout">Sign out</button></div></div>`;
+      <div class="row wrap"><button class="btn ghost small" data-act="export-csv">Download CSV</button></div></div>
+    <details class="box adv" id="adv" ${S.advOpen ? 'open' : ''}><summary><b>Advanced</b></summary>
+      <div class="advin"><b>Spotify</b>
+        <div class="note">${SP.configured() ? (connected ? 'Connected on this device.' : 'Not connected on this device. Each of you connects on your own phone.') : 'The client ID is missing at the top of index.html.'}</div>
+        <div class="row wrap">${connected ? '<button class="btn ghost small" data-act="sp-disconnect">Disconnect</button>' : '<button class="btn green small" data-act="sp-connect">Connect Spotify</button>'}</div>
+        <div class="note">Redirect address to register in the Spotify dashboard:<br><code>${esc(SP.redirect)}</code></div></div>
+      <div class="advin"><b>Discogs token</b>
+        <div class="note">Scanning finds far more with a free Discogs token. On discogs.com open Settings, then Developers, then Generate new token, and paste it here. It is stored on this device only.</div>
+        <input id="dtoken" type="password" placeholder="Discogs token" autocomplete="off" value="${esc(dTok())}">
+        <div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="dtoken-save">Save token</button>${dTok() ? '<button class="btn ghost small" data-act="dtoken-clear">Remove</button>' : ''}</div></div>
+      <div class="advin"><b>Account ID</b><div class="note"><code>${esc(S.user.uid)}</code></div></div>
+    </details>`;
 }
 
 /* ---------- tabs ---------- */
@@ -2164,6 +2200,7 @@ function ensureMe() {
   const m = me();
   const want = { uid: S.user.uid, name: S.user.displayName || (S.user.email || '').split('@')[0], email: emailOf(), photo: S.user.photoURL || '', lastSeen: Date.now() };
   if (!m.theme) want.theme = S.theme; else if (m.theme !== S.theme) applyTheme(m.theme);
+  if (!m.view) want.view = S.view; else if (VIEW_IDS.includes(m.view) && m.view !== S.view) { S.view = m.view; lset('musicbox_view', S.view); if (S.tab === 'library' && S.started) renderLibrary(); }
   try { fb.F.setDoc(pref(S.user.uid), want, { merge: true }).catch(() => {}); } catch (e) {}
 }
 function saveMine(patch) {
@@ -2193,8 +2230,7 @@ function renderHousehold() {
       <h4>Favourite vinyls</h4>
       ${fv.length ? `<div class="favrow">${fv.map(r => `<div class="favv" data-open="${esc(r.id)}">${r.cover ? `<img class="cov" style="width:72px;height:72px" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="cov" style="width:72px;height:72px"></div>'}<div class="note">${esc(r.title)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
       ${!mine ? (() => { const n = wishOf(p.id).length, t = new Set(mineWish().map(r => wk(r.artist, r.title))), m = wishOf(p.id).filter(r => t.has(wk(r.artist, r.title))).length; return `<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="their-wish" data-uid="${esc(p.id)}">Wishlist · ${n}</button>${m ? `<span class="tag ok">${m} match${m === 1 ? '' : 'es'}!</span>` : ''}</div>`; })() : ''}
-      ${mine ? `<label>Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">` : ''}
-      ${mine ? '<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button><button class="btn ghost small" data-act="themes">Change theme</button></div>' : ''}
+      ${mine ? '<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="profile">Profile</button></div>' : ''}
     </div>`;
   }).join('');
   $('#main').innerHTML = (S.peopleFail ? '<p class="note err">The household could not be loaded. Publish the latest Firestore rules.</p>' : '') + cards + '<p class="note">People appear here after they sign in to Musicbox once.</p>';
@@ -2229,9 +2265,19 @@ function toggleFavVinyl(id) {
   saveMine({ favVinyls: cur });
   const l = $('#fv-list'); if (l) l.innerHTML = favVinylList((($('#fv-q') || {}).value) || '');
 }
+function openProfile() {
+  const p = me() || {};
+  openSheet(`<div class="row"><h3 class="grow">Profile</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    <label>Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">
+    <h4>Favourites</h4>
+    <div class="row wrap"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button></div>
+    <h4>Theme</h4>
+    <div id="theme-grid">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand. Your nickname and theme follow you across devices.</div>
+    <button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+}
 function openThemes() {
   openSheet(`<div class="row"><h3 class="grow">Theme</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
-    <div id="theme-grid">${themeGridHTML()}</div><button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+    <div id="theme-grid">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand.</div><button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
 }
 
 const seenKey = () => 'musicbox_seen_' + (S.user ? S.user.uid : '');
@@ -2281,12 +2327,10 @@ function showErr(err) {
 }
 window.addEventListener('error', e => showErr(e.error || e.message));
 window.addEventListener('unhandledrejection', e => showErr(e));
-if (/[?&]debug/.test(location.search)) document.addEventListener('click', e => {
-  let d = document.getElementById('dbgbar');
-  if (!d) { d = document.createElement('div'); d.id = 'dbgbar'; d.style.cssText = 'position:fixed;left:0;right:0;bottom:60px;z-index:99;background:#222;color:#0f0;padding:6px 10px;font:12px monospace;pointer-events:none'; document.body.appendChild(d); }
-  const t = e.target; d.textContent = 'tap: ' + (t.tagName || '?') + (t.id ? '#' + t.id : '') + ' ' + [...(t.attributes || [])].filter(a => a.name.startsWith('data-')).map(a => a.name + '=' + a.value).join(' ');
-}, true);
 document.addEventListener('click', e => { try { onClickInner(e); } catch (err) { showErr(err); } });
+document.addEventListener('toggle', e => { if (e.target && e.target.id === 'adv') S.advOpen = e.target.open; }, true);
+window.addEventListener('online', () => { S.offline = false; updateSyncLine(); });
+window.addEventListener('offline', updateSyncLine);
 function onClickInner(e) {
   const t = e.target;
   if (t.id === 'sheet') { closeSheet(); return; }
@@ -2303,7 +2347,7 @@ function onClickInner(e) {
   if (t.closest('a.play')) return;
   const tab = t.closest('button[data-tab]'); if (tab) { setTab(tab.dataset.tab); return; }
   const th = t.closest('[data-theme-id]'); if (th) { applyTheme(th.dataset.themeId); if (S.user && fb) saveMine({ theme: th.dataset.themeId }); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); return; }
-  const vw = t.closest('[data-view]'); if (vw) { S.view = vw.dataset.view; lset('musicbox_view', S.view); renderLibrary(); return; }
+  const vw = t.closest('[data-view]'); if (vw) { S.view = vw.dataset.view; lset('musicbox_view', S.view); if (S.user && fb) saveMine({ view: S.view }); renderLibrary(); return; }
   const pg = t.closest('[data-pg]'); if (pg) { S.page += +pg.dataset.pg; renderLibraryList(); toListTop(); return; }
   const tr = t.closest('[data-trophy]'); if (tr) { showTrophy(tr.dataset.trophy); return; }
   const chip = t.closest('[data-chip]'); if (chip) { S.filter = chip.dataset.chip; S.page = 0; $('#chips').innerHTML = chipsHTML(); renderLibraryList(); return; }
@@ -2332,6 +2376,7 @@ function onClickInner(e) {
   else if (act === 'sv-lib') { S.sv = 'lib'; renderStats(); }
   else if (act === 'sv-listen') { S.sv = 'listen'; S.lsStale = true; renderStats(); }
   else if (act === 'ls-connect') spConnect(true);
+  else if (act === 'sync-now') syncNow();
   else if (act === 'ls-bg-on') lsBg(true);
   else if (act === 'ls-bg-off') lsBg(false);
   else if (act === 'ls-sync') lsSync();
@@ -2345,6 +2390,7 @@ function onClickInner(e) {
   else if (act === 'ls-import') { const f = $('#lsfile'); if (f) f.click(); }
   else if (act === 'cover-stop') S.stop = true;
   else if (act === 'themes') openThemes();
+  else if (act === 'profile') openProfile();
   else if (act === 'cov-clear') { if (S.draft) { S.draft.cover = ''; updateCoverPrev(); } }
   else if (act === 'wish-search') wishSearch();
   else if (act === 'wd-back') { if (S.wd && S.wd.list) { S.wd = { phase: 'cands', list: S.wd.list, errs: [] }; } else S.wd = null; refreshWish(); }
