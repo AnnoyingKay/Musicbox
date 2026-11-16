@@ -80,6 +80,13 @@ nav.tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
 .seg.views button{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center}
 .fpanel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.fpanel select{min-height:38px;padding:6px 8px;width:100%}.fpanel label{font-size:12px;color:var(--dim);display:block;margin-bottom:2px}.ann{background:var(--card);border:1px solid var(--acc);border-radius:var(--radius);padding:12px;margin-top:12px;box-shadow:var(--bevel)}.ann p{margin:4px 0;font-size:14px}
 .adv summary{cursor:pointer;list-style:none;padding:2px 0}.adv summary::-webkit-details-marker{display:none}.adv summary b::after{content:' ▾';color:var(--dim)}.adv[open] summary b::after{content:' ▴'}.advin{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-image:var(--lay-img,none);background-size:var(--lay-size,auto);background-position:0 0,0 0,0 0,right -240px top 28vh;background-repeat:no-repeat,no-repeat,repeat,no-repeat}
+main{position:relative;z-index:1}
+header.top{background-image:var(--hdr,none),linear-gradient(90deg,transparent,var(--acc),transparent);background-repeat:no-repeat;background-position:right 40px top 0,0 calc(100% - 3px);background-size:180px 80px,100% 1px;box-shadow:0 8px 14px -12px var(--acc)}
+.box,.res,.tcell,.ann,#lst.list .item{background-image:var(--grain,none)}
+.tile .tc,.item .cov{box-shadow:0 2px 6px #0004}
+nav.tabs{background-image:var(--grain,none)}
+nav.tabs button{border-top:2px solid transparent}nav.tabs button.on{border-top-color:var(--acc);box-shadow:inset 0 10px 12px -12px var(--acc)}
 .subtabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}.subtabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 10px;min-height:36px;font:inherit;font-size:14px;cursor:pointer}.subtabs button.on{color:var(--txt);border-bottom-color:var(--acc);font-weight:600}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{border:1px solid var(--line);background:transparent;border-radius:calc(var(--radius)*4);padding:6px 12px;font-size:14px;white-space:nowrap;box-shadow:var(--bevel)}
@@ -185,6 +192,7 @@ a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0
   nav.tabs{right:auto;top:0;bottom:0;width:92px;flex-direction:column;justify-content:flex-start;gap:6px;padding:18px 0 0;border-top:0;border-right:1px solid var(--line)}
   nav.tabs button{flex:0 0 auto;padding:12px 4px;margin:0 8px;border-radius:var(--radius)}
   nav.tabs button.on{background:var(--card)}
+  nav.tabs button{border-top:0;border-left:2px solid transparent}nav.tabs button.on{border-left-color:var(--acc);box-shadow:none}
   .fab{right:28px;bottom:28px}
   main{padding-bottom:70px}
   #lst.list{grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -922,6 +930,32 @@ const TXT = {
 };
 const DEFAULT_COV = 'radial-gradient(circle,var(--bg) 0 9%,var(--line) 10% 34%,var(--bg) 35% 38%,var(--line) 39% 100%)';
 function hue(s) { let h = 0; for (const c of String(s || '')) h = (h * 31 + c.charCodeAt(0)) % 360; return h; }
+/* Shared detail layer: drawn from each theme's own colours, original SVG and CSS, no files */
+const GROOVE = c => { let r = ''; for (let i = 0; i < 34; i++) r += `<circle cx='320' cy='320' r='${70 + i * 7.4}' fill='none' stroke='${c.a}' stroke-width='${i % 6 === 5 ? 2.2 : .8}' opacity='${i % 6 === 5 ? .5 : .32}'/>`; return r + `<circle cx='320' cy='320' r='58' fill='${c.a}' opacity='.35'/><circle cx='320' cy='320' r='52' fill='none' stroke='${c.b}' stroke-width='1.2' opacity='.6'/><circle cx='320' cy='320' r='5' fill='${c.b}'/><path d='M320 320 L320 10 A310 310 0 0 1 560 120Z' fill='${c.x}' opacity='.08'/><path d='M320 320 L320 630 A310 310 0 0 1 80 520Z' fill='${c.x}' opacity='.08'/>`; };
+const PAT = {
+  Formats: [8, c => `<path d='M0 8L8 0M-2 2L2 -2M6 10L10 6' stroke='${c.x}' stroke-width='.7' opacity='.5'/>`],
+  Genres: [14, c => `<circle cx='7' cy='7' r='1.3' fill='${c.a}'/><circle cx='0' cy='0' r='.9' fill='${c.a}'/><circle cx='14' cy='14' r='.9' fill='${c.a}'/>`],
+  Bands: [26, c => `<path d='M13 9v8M9 13h8' stroke='${c.a}' stroke-width='1' stroke-linecap='round'/><circle cx='0' cy='0' r='1' fill='${c.d}'/>`],
+  Decades: [24, c => `<circle cx='6' cy='6' r='3' fill='${c.a}'/><circle cx='18' cy='18' r='2' fill='${c.d}'/>`],
+  Festive: [72, c => spark(18, 20, 6, c.a, 1) + spark(52, 50, 4, c.x, .8) + `<circle cx='60' cy='12' r='1.4' fill='${c.a}'/><circle cx='10' cy='58' r='1.2' fill='${c.x}'/>`],
+  Places: [60, c => `<path d='M0 12Q15 0 30 12T60 12M0 36Q15 24 30 36T60 36' ${ln(c.a, 1)}/>`],
+  Moods: [40, c => `<circle cx='20' cy='20' r='14' fill='none' stroke='${c.a}' stroke-width='.8'/><circle cx='20' cy='20' r='5' fill='${c.a}' opacity='.6'/>`],
+  Objects: [44, c => `<path d='M4 8l9 2M24 4l6 5M10 30l8-3M30 36l9 1M36 20l-5 7' stroke='${c.x}' stroke-width='.8' stroke-linecap='round'/>`]
+};
+const PATOP = { Formats: .05, Genres: .09, Bands: .10, Decades: .07, Festive: .16, Places: .09, Moods: .05, Objects: .07 };
+function applyDetail(t, v, c) {
+  const st = document.documentElement.style, light = !!v.light, g = t.g || 'Formats', p = PAT[g] || PAT.Formats;
+  const vig = light ? 'rgba(0,0,0,.10)' : 'rgba(0,0,0,.38)';
+  const glow = `radial-gradient(ellipse 80% 40% at 50% 0%,${c.a}${light ? '1c' : '26'},transparent 70%)`;
+  const disc = sv(640, 640, `<g opacity='${light ? .16 : .13}'>${GROOVE(c)}</g>`);
+  const pat = sv(p[0], p[0], `<g opacity='${PATOP[g] * (light ? 1.3 : 1)}'>${p[1](c)}</g>`);
+  st.setProperty('--lay-img', `${glow},radial-gradient(ellipse at 50% 40%,transparent 55%,${vig}),${pat},${disc}`);
+  st.setProperty('--lay-size', `100% 100%,100% 100%,${p[0]}px ${p[0]}px,640px 640px`);
+  const n = light ? 0 : 1;
+  st.setProperty('--grain', sv(120, 120, `<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 ${light ? .07 : .11} 0'/></filter><rect width='120' height='120' filter='url(#n)'/>`));
+  const arcs = Array.from({ length: 9 }, (_, i) => `<circle cx='170' cy='40' r='${22 + i * 11}' fill='none' stroke='${c.a}' stroke-width='.8' opacity='${.28 - i * .02}'/>`).join('');
+  st.setProperty('--hdr', sv(180, 80, arcs));
+}
 function applyTheme(id) {
   const t = THEMES.find(x => x.id === id) || THEMES[0];
   const v = { ...BASE, ...t };
@@ -934,6 +968,7 @@ function applyTheme(id) {
   st.setProperty('--img', [tile, v.img].filter(x => x && x !== 'none').join(',') || 'none');
   st.setProperty('--orn', art.orn ? sv(120, 56, art.orn(c)) : 'none');
   st.setProperty('--cov', art.cov ? sv(56, 56, art.cov(c)) + ' center/cover no-repeat, var(--card)' : DEFAULT_COV);
+  applyDetail(t, v, c);
   const tx = TXT[t.id] || TXT.record;
   if ($('#title')) $('#title').textContent = tx[0];
   S.tx = tx; refreshHello();
@@ -1719,7 +1754,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 28;
+const APP_VERSION = 29;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';

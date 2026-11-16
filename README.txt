@@ -1,4 +1,4 @@
-MUSICBOX v28
+MUSICBOX v29
 
 Files for the Musicbox repo (root): index.html, sw.js, manifest.webmanifest, icon-192.png, icon-512.png
 Also in the zip, unchanged: scripts/sync.mjs and .github/workflows/listening.yml (background Listening job).
