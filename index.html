@@ -1212,9 +1212,12 @@ async function lsGenres(limit) {
   }
   try { await fb.F.setDoc(LSM('genres'), { m: S.lsGen }, { merge: true }); } catch (e) {}
 }
-const lsSince = per => per === 'all' ? '0000' : /^y\d{4}$/.test(per) ? per.slice(1) + '-01-01' : dayKey(new Date(Date.now() - (+per - 1) * 864e5));
+/* A year here follows Spotify Wrapped: December of the year before to November of that year */
+const wrapFrom = y => (y - 1) + '-12-01', wrapTo = y => y + '-11-30';
+const wrapYear = day => { const y = +String(day).slice(0, 4), m = +String(day).slice(5, 7); return m === 12 ? y + 1 : y; };
+const lsSince = per => per === 'all' ? '0000' : /^y\d{4}$/.test(per) ? wrapFrom(+per.slice(1)) : dayKey(new Date(Date.now() - (+per - 1) * 864e5));
 function lsPlays(per) {
-  const lim = lsSince(per), end = /^y\d{4}$/.test(per) ? per.slice(1) + '-12-31' : '9999', out = [];
+  const lim = lsSince(per), end = /^y\d{4}$/.test(per) ? wrapTo(+per.slice(1)) : '9999', out = [];
   for (const [d, ps] of S.lsDays) if (d >= lim && d <= end) out.push(...ps);
   return out;
 }
@@ -1266,9 +1269,9 @@ function lsTopTab() {
   else if (ty === 'ar') body = cut(lsList('Top artists', t.a.map((x, i) => ({ n: x.n, s: '', c0: x.c, c: 50 - i }))));
   else if (ty === 'al') { const albs = new Map(); t.t.forEach((x, i) => { if (!x.b) return; const k = lsKey(x.b + '|' + (x.a || [])[0]); const e = albs.get(k); if (e) e.c += 51 - i; else albs.set(k, { n: x.b, s: (x.a || [])[0] || '', c0: x.c, c: 51 - i }); }); body = cut(lsList('Albums with most of your top songs', [...albs.values()].sort((a, b) => b.c - a.c).slice(0, 30))); }
   else { const gen = new Map(); t.a.forEach(x => (x.g || []).forEach(g => { const e = gen.get(g); if (e) e.c++; else gen.set(g, { n: g, s: '', c: 1 }); })); body = lsList('Genres of your top artists', [...gen.values()].sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, 30)); }
-  return h + body + `<div class="note">Spotify ranks these by how much you listen and gives no play counts, at most 50 items per list. ${/^y/.test(sel) ? 'A year shows the 12 month list from the last time it was saved in that year.' : ''} Saved ${esc(new Date(cur.at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }))}.</div>`;
+  return h + body + `<div class="note">Spotify ranks these by how much you listen and gives no play counts, at most 50 items per list. ${/^y/.test(sel) ? 'A year runs December to November, like Spotify Wrapped, and shows the 12 month list from the last time it was saved in that period.' : ''} Saved ${esc(new Date(cur.at).toLocaleDateString('en-IE', { day: 'numeric', month: 'short', year: 'numeric' }))}.</div>`;
 }
-const lsYears = () => { const out = [], y0 = +String((S.lsMeta && S.lsMeta.first) || '').slice(0, 4) || new Date().getFullYear(); for (let y = new Date().getFullYear(); y >= Math.max(y0, 2008); y--) out.push(y); return out; };
+const lsYears = () => { const out = [], now = wrapYear(dayKey(new Date())), y0 = (S.lsMeta && S.lsMeta.first) ? wrapYear(S.lsMeta.first) : now; for (let y = now; y >= Math.max(y0, 2008); y--) out.push(y); return out; };
 function lsSetup() {
   const au = S.lsAuth || {}, ran = au.ranAt ? new Date(au.ranAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   return `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year, back to when your account began. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>
@@ -1289,6 +1292,7 @@ function lsRender() {
     h += `<div class="chips" style="margin:6px 0">${LS_TYPES.map(([k, l]) => `<button class="chip ${ty === k ? 'on' : ''}" data-act="ls-type" data-v="${k}">${l}</button>`).join('')}</div>`;
     h += `<div class="chips" style="margin:6px 0 10px">${pc('7', '7 days')}${pc('30', '30 days')}${pc('365', '12 months')}${yrs.map(y => pc('y' + y, String(y))).join('')}${pc('all', 'All time')}</div>`;
     const ps = lsPlays(per);
+    if (/^y\d{4}$/.test(per)) { const y = +per.slice(1); h += `<div class="note" style="margin:-4px 0 8px">${y} runs from December ${y - 1} to November ${y}, like Spotify Wrapped.</div>`; }
     if (ty === 'ov') h += lsOverview(ps, per);
     else { const a = lsAgg(ps), m = { sg: ['Top songs', a.songs], al: ['Top albums', a.albums], ar: ['Top artists', a.artists], ge: ['Top genres', a.genres] }[ty]; h += m[1].length ? lsList(m[0], m[1]) + `<div class="note">${m[1].length >= 50 ? 'Showing the top 50.' : ''}</div>` : `<div class="empty">${ty === 'ge' ? 'Genres appear after a few syncs.' : 'No plays saved for this period yet.'}</div>`; }
   } else if (tab === 'tp') h += lsTopTab();
@@ -1307,8 +1311,8 @@ async function lsBg(on) {
 async function lsLoadSnaps() {
   await lsMetaLoad(); S.lsYearSnap = S.lsYearSnap || {};
   for (const y of lsYears()) {
-    if (S.lsYearSnap[y] && y !== new Date().getFullYear()) continue;
-    try { const q = await fb.F.getDocs(fb.F.query(LST(), fb.F.where('day', '>=', y + '-01-01'), fb.F.where('day', '<=', y + '-12-31'), fb.F.orderBy('day', 'desc'), fb.F.limit(1))); if (q.docs.length) S.lsYearSnap[y] = q.docs[0].data(); } catch (e) {}
+    if (S.lsYearSnap[y] && y < wrapYear(dayKey(new Date()))) continue;
+    try { const q = await fb.F.getDocs(fb.F.query(LST(), fb.F.where('day', '>=', wrapFrom(y)), fb.F.where('day', '<=', wrapTo(y)), fb.F.orderBy('day', 'desc'), fb.F.limit(1))); if (q.docs.length) S.lsYearSnap[y] = q.docs[0].data(); } catch (e) {}
   }
   lsRender();
 }
@@ -1754,7 +1758,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 29;
+const APP_VERSION = 30;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
