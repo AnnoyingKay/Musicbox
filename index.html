@@ -87,6 +87,8 @@ header.top{background-image:var(--hdr,none),linear-gradient(90deg,transparent,va
 .tile .tc,.item .cov{box-shadow:0 2px 6px #0004}
 nav.tabs{background-image:var(--grain,none)}
 nav.tabs button{border-top:2px solid transparent}nav.tabs button.on{border-top-color:var(--acc);box-shadow:inset 0 10px 12px -12px var(--acc)}
+.statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}.stat{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px}.stat b{display:block;font-size:22px;color:var(--acc);font-family:var(--head)}.stat span{font-size:12px;color:var(--dim)}
+@media(min-width:600px){.statgrid{grid-template-columns:repeat(3,1fr)}}
 .subtabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}.subtabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 10px;min-height:36px;font:inherit;font-size:14px;cursor:pointer}.subtabs button.on{color:var(--txt);border-bottom-color:var(--acc);font-weight:600}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{border:1px solid var(--line);background:transparent;border-radius:calc(var(--radius)*4);padding:6px 12px;font-size:14px;white-space:nowrap;box-shadow:var(--bevel)}
@@ -373,7 +375,13 @@ async function spConnect(stats) {
   const challenge = b64url(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(ver)));
   const u = new URL('https://accounts.spotify.com/authorize');
   u.search = new URLSearchParams({ client_id: SPOTIFY_CLIENT_ID, response_type: 'code', redirect_uri: SP.redirect, code_challenge_method: 'S256', code_challenge: challenge, state, ...(stats ? { scope: 'user-top-read user-read-recently-played' } : {}) }).toString();
-  location.href = u.toString();
+  const go = u.toString();
+  /* Spotify refuses to load inside another page (Libraries shows it as a white screen), so leave the frame first */
+  if (window.top !== window.self) {
+    try { window.top.location.href = go; return; } catch (e) {}
+    if (window.open(go, '_blank')) return;
+  }
+  location.href = go;
 }
 async function spTokenRequest(params) {
   const r = await fetch('https://accounts.spotify.com/api/token', {
@@ -1223,9 +1231,9 @@ function lsPlays(per) {
 }
 function lsAgg(ps) {
   const song = new Map(), alb = new Map(), art = new Map(), gen = new Map(); let ms = 0;
-  const add = (m, k, v) => { const e = m.get(k); if (e) e.c++; else m.set(k, { ...v, c: 1 }); };
+  let dd = 0; const add = (m, k, v) => { const e = m.get(k); if (e) { e.c++; e.ms += dd; } else m.set(k, { ...v, c: 1, ms: dd }); };
   ps.forEach(p => {
-    ms += p.d || 0;
+    ms += p.d || 0; dd = p.d || 0;
     const a0 = (p.a || [])[0] || '';
     add(song, p.id || lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
     if (p.b) add(alb, lsKey(p.b + '|' + a0), { n: p.b, s: a0, c0: p.c });
@@ -1234,7 +1242,8 @@ function lsAgg(ps) {
     gs.forEach(g => add(gen, g, { n: g, s: '' }));
   });
   const top = (m, n = 50) => [...m.values()].sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, n);
-  return { n: ps.length, ms, songs: top(song), albums: top(alb), artists: top(art), genres: top(gen), nSongs: song.size, nArt: art.size };
+  const mins = (m, n = 5) => [...m.values()].map(x => ({ ...x, c: Math.round(x.ms / 6e4) })).filter(x => x.c > 0).sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, n);
+  return { n: ps.length, ms, songs: top(song), albums: top(alb), artists: top(art), genres: top(gen), nSongs: song.size, nArt: art.size, nAlb: alb.size, nGen: gen.size, artMin: mins(art), genMin: mins(gen), songMin: mins(song), allGen: [...gen.values()].reduce((n, x) => n + x.c, 0) };
 }
 function lsList(title, arr, unit = 'plays') {
   if (!arr.length) return '';
@@ -1252,9 +1261,17 @@ function lsOverview(ps, per) {
   ps.forEach(p => { const d = new Date(p.ts), k = dayKey(d); dayN.set(k, (dayN.get(k) || 0) + 1); const m = k.slice(0, 7); monN.set(m, (monN.get(m) || 0) + 1); wd[(d.getDay() + 6) % 7]++; });
   const daily = per === '7' || per === '30';
   let when = daily ? [...dayN.entries()].sort().map(([k, v]) => [k.slice(5), v]) : [...monN.entries()].sort().slice(-24);
-  const head = `<div class="box"><b>${fmtN(a.n)} play${a.n === 1 ? '' : 's'}</b><div class="note">${a.ms < 72e5 ? fmtN(Math.round(a.ms / 6e4)) + ' minutes' : fmtN(Math.round(a.ms / 36e5)) + ' hours'} · ${fmtN(a.nSongs)} different songs · ${fmtN(a.nArt)} artists · ${fmtN(a.albums.length >= 50 ? 50 : a.albums.length)}${a.albums.length >= 50 ? '+' : ''} albums</div></div>`;
+  const days = [...dayN.keys()].sort(); let best = 0, run = 0, prev = 0;
+  days.forEach(k => { const t = Date.parse(k + 'T00:00:00Z'); run = prev && t - prev === 864e5 ? run + 1 : 1; prev = t; if (run > best) best = run; });
+  const busy = [...dayN.entries()].sort((x, y) => y[1] - x[1])[0], hrs = [0, 0, 0, 0, 0, 0];
+  ps.forEach(p => { hrs[Math.floor(new Date(p.ts).getHours() / 4)]++; });
+  const tot = a.ms < 72e5 ? fmtN(Math.round(a.ms / 6e4)) + ' min' : fmtN(Math.round(a.ms / 36e5)) + ' hrs', avgMin = Math.round(a.ms / 6e4 / days.length), avgSong = a.n ? Math.round(a.ms / a.n / 1000) : 0;
+  const tile = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
+  const head = `<div class="box"><b>${fmtN(a.n)} play${a.n === 1 ? '' : 's'}</b><div class="statgrid">${tile(fmtN(Math.round(a.ms / 6e4)), 'minutes listened')}${tile(fmtN(Math.round(a.ms / 36e5 * 10) / 10), 'hours')}${tile(fmtN(Math.round(a.ms / 864e5 * 10) / 10), 'full days of music')}${tile(fmtN(days.length), days.length === 1 ? 'day with music' : 'days with music')}${tile(fmtN(avgMin), 'minutes on an active day')}${tile(fmtN(best), 'day streak, longest')}${tile(fmtN(a.nSongs), 'different songs')}${tile(fmtN(a.nArt), 'different artists')}${tile(fmtN(a.nAlb), 'different albums')}${tile(fmtN(a.nGen), 'genres')}${tile(Math.floor(avgSong / 60) + ':' + String(avgSong % 60).padStart(2, '0'), 'average song length')}${busy ? tile(fmtN(busy[1]), 'plays on the busiest day, ' + busy[0].slice(5).split('-').reverse().join('/')) : ''}</div></div>`;
+  const share = a.allGen ? `<div class="box"><b>Genre mix</b><div class="note">Share of plays, a song can count in several genres.</div>${a.genres.slice(0, 8).map(g => `<div class="hbar"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.n)}</span><div class="bar" style="flex:1"><i style="width:${g.c / a.n * 100}%"></i></div><span style="width:40px;text-align:right">${Math.round(g.c / a.n * 100)}%</span></div>`).join('')}</div>` : '';
+  const hourBox = `<div class="box"><b>Time of day</b>${lsBars([['00 to 04', hrs[0]], ['04 to 08', hrs[1]], ['08 to 12', hrs[2]], ['12 to 16', hrs[3]], ['16 to 20', hrs[4]], ['20 to 24', hrs[5]]])}</div>`;
   const five = (t, arr) => lsList(t, arr.slice(0, 5));
-  return head + five('Top songs', a.songs) + five('Top albums', a.albums) + five('Top artists', a.artists) + (a.genres.length ? five('Top genres', a.genres) : '<div class="note">Genres appear after a few syncs.</div>') + `<div class="box"><b>${daily ? 'Plays per day' : 'Plays per month'}</b>${lsBars(when)}</div><div class="box"><b>Plays by weekday</b>${lsBars(WD.map((d, i) => [d, wd[i]]))}</div>`;
+  return head + five('Top songs', a.songs) + five('Top albums', a.albums) + five('Top artists', a.artists) + (a.genres.length ? five('Top genres', a.genres) + share : '<div class="note">Genres appear after a few syncs.</div>') + lsList('Artists by minutes listened', a.artMin) + (a.genMin.length ? lsList('Genres by minutes listened', a.genMin) : '') + lsList('Songs by minutes listened', a.songMin) + `<div class="box"><b>${daily ? 'Plays per day' : 'Plays per month'}</b>${lsBars(when)}</div><div class="box"><b>Plays by weekday</b>${lsBars(WD.map((d, i) => [d, wd[i]]))}</div>` + hourBox;
 }
 function lsTopTab() {
   const yrs = lsYears(), sel = S.lsRng, ty = S.lsTT || 'sg';
@@ -1758,7 +1775,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 30;
+const APP_VERSION = 32;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
