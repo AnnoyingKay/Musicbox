@@ -1127,7 +1127,7 @@ const LSD = () => fb.F.collection(fb.db, 'users', S.user.uid, 'musicboxDays');
 const LST = () => fb.F.collection(fb.db, 'users', S.user.uid, 'musicboxTop');
 const LSM = id => fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxMeta', id);
 const spHasStats = () => { const t = SP.tok(); return !!(t && /user-read-recently-played/.test(t.scope || '') && /user-top-read/.test(t.scope || '')); };
-Object.assign(S, { lsDays: new Map(), lsFrom: '9999', lsPer: ls('musicbox_lsper', '30'), lsTab: 'ct', lsType: 'ov', lsTT: 'sg', lsRng: 'medium', lsGen: {}, lsMeta: null, lsTop: null, lsBusy: false, lsMsg: '' });
+Object.assign(S, { lsDays: new Map(), lsFrom: '9999', lsPer: ls('musicbox_lsper', '30'), lsTab: 'ct', lsType: 'ov', lsTT: 'sg', lsRng: 'medium', lsGen: {}, lsAlbGen: {}, lsMeta: null, lsTop: null, lsBusy: false, lsMsg: '' });
 const dayOf = ts => dayKey(new Date(ts));
 const lsKey = n => norm(n);
 async function lsLoad(sinceKey) {
@@ -1140,7 +1140,8 @@ async function lsLoad(sinceKey) {
 async function lsMetaLoad() {
   if (S.lsMeta) return;
   try {
-    const [m, g, t, au] = await Promise.all([fb.F.getDoc(LSM('sync')), fb.F.getDoc(LSM('genres')), fb.F.getDocs(fb.F.query(LST(), fb.F.orderBy('at', 'desc'), fb.F.limit(1))), fb.F.getDoc(LSM('spotifyAuth'))]);
+    const [m, g, t, au, ag] = await Promise.all([fb.F.getDoc(LSM('sync')), fb.F.getDoc(LSM('genres')), fb.F.getDocs(fb.F.query(LST(), fb.F.orderBy('at', 'desc'), fb.F.limit(1))), fb.F.getDoc(LSM('spotifyAuth')), fb.F.getDoc(LSM('albumGenres'))]);
+    S.lsAlbGen = ag.exists() ? (ag.data().m || {}) : {};
     S.lsAuth = au.exists() ? au.data() : {};
     S.lsMeta = m.exists() ? m.data() : {}; S.lsGen = g.exists() ? (g.data().m || {}) : {};
     S.lsTop = t.docs.length ? t.docs[0].data() : null;
@@ -1203,22 +1204,75 @@ async function lsSync() {
   } catch (e) { S.lsMsg = spErrorText(e); if (!/^(NOSP|SP4)/.test(e.message || '')) S.lsMsg = 'Sync failed. Check your connection and try again.'; }
   S.lsBusy = false; lsRender();
 }
-async function lsGenres(limit) {
+/* Genres: Spotify first, MusicBrainz tags as the fallback when Spotify returns none */
+const GEN_CAP = 3000;
+async function mbGenres(name) {
+  const r = await fetch('https://musicbrainz.org/ws/2/artist/?fmt=json&limit=3&query=' + encodeURIComponent('artist:"' + name.replace(/"/g, '') + '"'));
+  if (!r.ok) throw new Error('MB' + r.status);
+  const j = await r.json(), k = lsKey(name), a = (j.artists || []).find(x => lsKey(x.name) === k && (x.score || 0) >= 90);
+  if (!a) return [];
+  const t = (a.tags || []).slice().sort((x, y) => (y.count || 0) - (x.count || 0)).slice(0, 3).map(x => String(x.name).toLowerCase());
+  return t;
+}
+function lsGenStats() {
+  const cnt = new Map(); for (const ps of S.lsDays.values()) for (const p of ps) (p.a || []).forEach(n => { const k = lsKey(n); cnt.set(k, (cnt.get(k) || 0) + 1); });
+  const all = [...cnt.keys()]; const done = all.filter(k => S.lsGen[k]), withG = done.filter(k => S.lsGen[k][0] !== 'unknown' && S.lsGen[k][0] !== 'none');
+  return { total: all.length, done: done.length, withG: withG.length, left: Math.min(all.length, GEN_CAP) - all.slice().sort((a, b) => cnt.get(b) - cnt.get(a)).slice(0, GEN_CAP).filter(k => S.lsGen[k] && S.lsGen[k][0] !== 'unknown').length };
+}
+async function mbAlbumGenres(album, artist) {
+  const r = await fetch('https://musicbrainz.org/ws/2/release-group/?fmt=json&limit=3&query=' + encodeURIComponent('releasegroup:"' + album.replace(/"/g, '') + '" AND artist:"' + artist.replace(/"/g, '') + '"'));
+  if (!r.ok) throw new Error('MB' + r.status);
+  const j = await r.json(), k = lsKey(album), a = (j['release-groups'] || []).find(x => lsKey(x.title) === k && (x.score || 0) >= 90);
+  return a ? (a.tags || []).slice().sort((x, y) => (y.count || 0) - (x.count || 0)).slice(0, 3).map(x => String(x.name).toLowerCase()) : [];
+}
+function lsAlbList() {
+  const cnt = new Map(), nm = new Map();
+  for (const ps of S.lsDays.values()) for (const p of ps) if (p.b) { const a0 = (p.a || [])[0] || '', k = lsKey(p.b + '|' + a0); cnt.set(k, (cnt.get(k) || 0) + 1); if (!nm.has(k)) nm.set(k, [p.b, a0]); }
+  return { order: [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, GEN_CAP).map(x => x[0]), nm, total: cnt.size };
+}
+async function lsAlbumRun(limit, say) {
+  const { order, nm } = lsAlbList(); lsAlbumGenres('');
+  const todo = order.filter(k => !libGen.has(k) && !S.lsAlbGen[k]).slice(0, limit);
+  if (!todo.length) { say('Every album in your top ' + GEN_CAP + ' is covered.'); return; }
+  let n = 0, found = 0; S.stop = false;
+  for (const k of todo) {
+    if (S.stop) break;
+    const [al, ar] = nm.get(k);
+    try { const g = await mbAlbumGenres(al, ar); S.lsAlbGen[k] = g.length ? g : ['none']; if (g.length) found++; } catch (e) { await sleep(1500); }
+    await sleep(1100); n++;
+    if (n % 5 === 0) say(`Looked up ${n} of ${todo.length}, ${found} with a genre`);
+    if (n % 50 === 0) { try { await fb.F.setDoc(LSM('albumGenres'), { m: S.lsAlbGen }, { merge: true }); } catch (e) {} }
+  }
+  try { await fb.F.setDoc(LSM('albumGenres'), { m: S.lsAlbGen }, { merge: true }); } catch (e) {}
+  say(`Done. Looked up ${n}, ${found} with a genre. Albums with none use the artist's genres.`);
+}
+async function lsGenres(limit, say) {
   const cnt = new Map(), ids = new Map();
   for (const ps of S.lsDays.values()) for (const p of ps) (p.a || []).forEach((n, i) => { const k = lsKey(n); cnt.set(k, (cnt.get(k) || 0) + 1); if (!ids.has(k)) ids.set(k, { n, id: (p.i || [])[i] || '' }); });
-  const todo = [...cnt.entries()].filter(([k]) => !S.lsGen[k]).sort((a, b) => b[1] - a[1]).slice(0, limit);
-  if (!todo.length) return;
+  const todo = [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, GEN_CAP).filter(([k]) => !S.lsGen[k] || (say && S.lsGen[k][0] === 'unknown')).slice(0, limit);
+  if (!todo.length) { if (say) say('Every artist in your top ' + GEN_CAP + ' has been looked up.'); return; }
+  let spTried = 0, spHit = 0, found = 0, n = 0, saved = 0; S.stop = false;
   for (const [k] of todo) {
-    const { n, id } = ids.get(k);
+    if (S.stop) break;
+    const { n: nm, id } = ids.get(k); let g = [];
     try {
-      let g = null;
-      if (id) { const a = await spGet('https://api.spotify.com/v1/artists/' + id, {}); g = a.genres || []; }
-      else { const r = await spGet('https://api.spotify.com/v1/search', { q: n, type: 'artist', limit: '5' }); const a = ((r.artists || {}).items || []).find(x => lsKey(x.name) === k) || ((r.artists || {}).items || [])[0]; g = a ? (a.genres || []) : []; }
-      S.lsGen[k] = g.length ? g : ['unknown'];
-    } catch (e) { if (/^(NOSP|SP40)/.test(e.message || '')) break; }
-    await sleep(150);
+      const useSp = spTried < 12 || spHit > 0;
+      if (useSp) {
+        try {
+          if (id) { const a = await spGet('https://api.spotify.com/v1/artists/' + id, {}); g = a.genres || []; }
+          else { const r = await spGet('https://api.spotify.com/v1/search', { q: nm, type: 'artist', limit: '5' }); const a = ((r.artists || {}).items || []).find(x => lsKey(x.name) === k) || ((r.artists || {}).items || [])[0]; g = a ? (a.genres || []) : []; }
+          spTried++; if (g.length) spHit++;
+        } catch (e) { if (/^(NOSP|SP40)/.test(e.message || '')) { if (say) say('Spotify stopped answering. Try again later.'); break; } }
+        if (!g.length) await sleep(150);
+      }
+      let mbTried = false; if (!g.length && say) { g = await mbGenres(nm); mbTried = true; await sleep(1100); }
+      S.lsGen[k] = g.length ? g.slice(0, 3) : [mbTried ? 'none' : 'unknown']; if (g.length) found++;
+    } catch (e) { await sleep(1500); }
+    n++; if (say && n % 5 === 0) say(`Looked up ${n} of ${todo.length}, ${found} with a genre`);
+    if (n % 50 === 0) { try { await fb.F.setDoc(LSM('genres'), { m: S.lsGen }, { merge: true }); saved = n; } catch (e) {} }
   }
   try { await fb.F.setDoc(LSM('genres'), { m: S.lsGen }, { merge: true }); } catch (e) {}
+  if (say) say(`Done. Looked up ${n}, ${found} with a genre.${spTried >= 12 && !spHit ? ' Spotify returned no genres, so MusicBrainz tags were used.' : ''}`);
 }
 /* A year here follows Spotify Wrapped: December of the year before to November of that year */
 const wrapFrom = y => (y - 1) + '-12-01', wrapTo = y => y + '-11-30';
@@ -1229,6 +1283,13 @@ function lsPlays(per) {
   for (const [d, ps] of S.lsDays) if (d >= lim && d <= end) out.push(...ps);
   return out;
 }
+/* Album genres: your own records first, then MusicBrainz album tags, else the artist's genres */
+let libGenKey = -1, libGen = new Map();
+function lsAlbumGenres(k) {
+  if (libGenKey !== S.recs.length) { libGenKey = S.recs.length; libGen = new Map(); S.recs.forEach(r => { const g = splitL(r.genres).map(x => x.toLowerCase()); if (g.length && r.title) libGen.set(lsKey(r.title + '|' + r.artist), g); }); }
+  const a = libGen.get(k); if (a) return a;
+  const b = S.lsAlbGen[k]; return b && b[0] !== 'none' ? b : null;
+}
 function lsAgg(ps) {
   const song = new Map(), alb = new Map(), art = new Map(), gen = new Map(); let ms = 0;
   let dd = 0; const add = (m, k, v) => { const e = m.get(k); if (e) { e.c++; e.ms += dd; } else m.set(k, { ...v, c: 1, ms: dd }); };
@@ -1238,7 +1299,8 @@ function lsAgg(ps) {
     add(song, p.id || lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
     if (p.b) add(alb, lsKey(p.b + '|' + a0), { n: p.b, s: a0, c0: p.c });
     (p.a || []).forEach(n => add(art, lsKey(n), { n, s: '' }));
-    const gs = new Set(); (p.a || []).forEach(n => (S.lsGen[lsKey(n)] || []).forEach(g => { if (g !== 'unknown') gs.add(g); }));
+    const gs = new Set(), ag = p.b ? lsAlbumGenres(lsKey(p.b + '|' + a0)) : null;
+    if (ag) ag.forEach(g => gs.add(g)); else (p.a || []).forEach(n => (S.lsGen[lsKey(n)] || []).forEach(g => { if (g !== 'unknown' && g !== 'none') gs.add(g); }));
     gs.forEach(g => add(gen, g, { n: g, s: '' }));
   });
   const top = (m, n = 50) => [...m.values()].sort((a, b) => b.c - a.c || a.n.localeCompare(b.n)).slice(0, n);
@@ -1267,7 +1329,7 @@ function lsOverview(ps, per) {
   ps.forEach(p => { hrs[Math.floor(new Date(p.ts).getHours() / 4)]++; });
   const tot = a.ms < 72e5 ? fmtN(Math.round(a.ms / 6e4)) + ' min' : fmtN(Math.round(a.ms / 36e5)) + ' hrs', avgMin = Math.round(a.ms / 6e4 / days.length), avgSong = a.n ? Math.round(a.ms / a.n / 1000) : 0;
   const tile = (v, l) => `<div class="stat"><b>${v}</b><span>${l}</span></div>`;
-  const head = `<div class="box"><b>${fmtN(a.n)} play${a.n === 1 ? '' : 's'}</b><div class="statgrid">${tile(fmtN(Math.round(a.ms / 6e4)), 'minutes listened')}${tile(fmtN(Math.round(a.ms / 36e5 * 10) / 10), 'hours')}${tile(fmtN(Math.round(a.ms / 864e5 * 10) / 10), 'full days of music')}${tile(fmtN(days.length), days.length === 1 ? 'day with music' : 'days with music')}${tile(fmtN(avgMin), 'minutes on an active day')}${tile(fmtN(best), 'day streak, longest')}${tile(fmtN(a.nSongs), 'different songs')}${tile(fmtN(a.nArt), 'different artists')}${tile(fmtN(a.nAlb), 'different albums')}${tile(fmtN(a.nGen), 'genres')}${tile(Math.floor(avgSong / 60) + ':' + String(avgSong % 60).padStart(2, '0'), 'average song length')}${busy ? tile(fmtN(busy[1]), 'plays on the busiest day, ' + busy[0].slice(5).split('-').reverse().join('/')) : ''}</div></div>`;
+  const head = `<div class="box"><b>${fmtN(a.n)} play${a.n === 1 ? '' : 's'}</b><div class="statgrid">${tile(fmtN(Math.round(a.ms / 6e4)), 'minutes listened')}${tile(fmtN(Math.round(a.ms / 36e5 * 10) / 10), 'hours')}${tile(fmtN(Math.round(a.ms / 864e5 * 10) / 10), 'full days of music')}${tile(fmtN(days.length), days.length === 1 ? 'day with music' : 'days with music')}${tile(fmtN(avgMin), 'minutes on an active day')}${tile(fmtN(best), 'day streak, longest')}${tile(fmtN(a.nSongs), 'different songs')}${tile(fmtN(a.nArt), 'different artists')}${tile(fmtN(a.nAlb), 'different albums')}${tile(fmtN(a.nGen), a.nGen ? 'genres' : 'genres, look them up in Setup')}${tile(Math.floor(avgSong / 60) + ':' + String(avgSong % 60).padStart(2, '0'), 'average song length')}${busy ? tile(fmtN(busy[1]), 'plays on the busiest day, ' + busy[0].slice(5).split('-').reverse().join('/')) : ''}</div></div>`;
   const share = a.allGen ? `<div class="box"><b>Genre mix</b><div class="note">Share of plays, a song can count in several genres.</div>${a.genres.slice(0, 8).map(g => `<div class="hbar"><span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(g.n)}</span><div class="bar" style="flex:1"><i style="width:${g.c / a.n * 100}%"></i></div><span style="width:40px;text-align:right">${Math.round(g.c / a.n * 100)}%</span></div>`).join('')}</div>` : '';
   const hourBox = `<div class="box"><b>Time of day</b>${lsBars([['00 to 04', hrs[0]], ['04 to 08', hrs[1]], ['08 to 12', hrs[2]], ['12 to 16', hrs[3]], ['16 to 20', hrs[4]], ['20 to 24', hrs[5]]])}</div>`;
   const five = (t, arr) => lsList(t, arr.slice(0, 5));
@@ -1290,8 +1352,10 @@ function lsTopTab() {
 }
 const lsYears = () => { const out = [], now = wrapYear(dayKey(new Date())), y0 = (S.lsMeta && S.lsMeta.first) ? wrapYear(S.lsMeta.first) : now; for (let y = now; y >= Math.max(y0, 2008); y--) out.push(y); return out; };
 function lsSetup() {
-  const au = S.lsAuth || {}, ran = au.ranAt ? new Date(au.ranAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
-  return `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year, back to when your account began. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>
+  const gs = lsGenStats(), al = lsAlbList(); lsAlbumGenres(''); const alOwn = al.order.filter(k => libGen.has(k)).length, alMb = al.order.filter(k => S.lsAlbGen[k] && S.lsAlbGen[k][0] !== 'none').length, alLeft = al.order.filter(k => !libGen.has(k) && !S.lsAlbGen[k]).length, au = S.lsAuth || {}, ran = au.ranAt ? new Date(au.ranAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
+  const genBox = `<div class="box"><b>Genres</b><div class="note">${fmtN(gs.withG)} of your ${fmtN(gs.total)} artists have a genre, ${fmtN(gs.done - gs.withG)} have none found. Spotify only gives genres for artists it has them for, so Musicbox falls back to MusicBrainz tags. That is about one artist a second, so keep this page open. It works through your most played artists first, up to ${fmtN(GEN_CAP)}.</div><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="ls-gen" data-n="300" ${gs.left ? '' : 'disabled'}>Look up 300 artists</button><button class="btn ghost small hide" id="gen-stop" data-act="gen-stop">Stop</button></div><div class="note" id="gen-prog">${esc(S.lsGenMsg || '')}</div>
+    <div class="note" style="margin-top:10px">Albums: a play uses the album's own genres when it has them, otherwise the artist's. ${fmtN(alOwn)} of your played albums are in your vinyl collection and use its genres, and ${fmtN(alMb)} have MusicBrainz album tags.</div><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="ls-albgen" data-n="300" ${alLeft ? '' : 'disabled'}>Look up 300 albums</button></div></div>`;
+  return genBox + `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year, back to when your account began. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>
   <div class="box"><b>Collect plays in the background</b><div class="note">Spotify only shares your last 50 plays, so while the app is closed nothing is collected. A free scheduled job on GitHub can do it for you every 30 minutes. Turning this on saves your Spotify login token privately under your account so the job can use it. Turn it off any time.</div>
     <div class="row wrap" style="margin-top:8px">${au.enabled ? '<button class="btn ghost small" data-act="ls-bg-off">Turn off</button>' : '<button class="btn small" data-act="ls-bg-on">Turn on</button>'}</div>
     <div class="note">${au.enabled ? (ran ? 'Last collected ' + esc(ran) + (au.lastAdded != null ? ', ' + au.lastAdded + ' new' : '') + '.' : 'On. Waiting for the first run (set up the GitHub job first).') : 'Off.'}</div>${au.error ? `<div class="note err">${esc(au.error)}</div>` : ''}</div>
@@ -1775,7 +1839,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 32;
+const APP_VERSION = 34;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
@@ -2434,6 +2498,9 @@ function onClickInner(e) {
   else if (act === 'ls-connect') spConnect(true);
   else if (act === 'sync-now') syncNow();
   else if (act === 'ls-bg-on') lsBg(true);
+  else if (act === 'gen-stop') S.stop = true;
+  else if (act === 'ls-albgen') { const st = $('#gen-stop'); if (st) st.classList.remove('hide'); b.disabled = true; lsAlbumRun(+b.dataset.n || 300, t => { S.lsGenMsg = t; if ($('#gen-prog')) $('#gen-prog').textContent = t; }).then(() => lsRender()); }
+  else if (act === 'ls-gen') { const st = $('#gen-stop'); if (st) st.classList.remove('hide'); b.disabled = true; lsGenres(+b.dataset.n || 300, t => { S.lsGenMsg = t; if ($('#gen-prog')) $('#gen-prog').textContent = t; }).then(() => { if (S.tab === 'stats') lsRender(); }); }
   else if (act === 'ls-bg-off') lsBg(false);
   else if (act === 'ls-sync') lsSync();
   else if (act === 'ls-per') { S.lsPer = b.dataset.v; lsRender(); lsEnsure(true); }
