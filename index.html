@@ -1147,10 +1147,30 @@ async function lsMetaLoad() {
     S.lsTop = t.docs.length ? t.docs[0].data() : null;
   } catch (e) { S.lsMeta = {}; S.lsMsg = 'Could not read your saved stats.'; }
 }
+/* Same play seen twice: exact repeat in one source, or the same play in the import and in Sync.
+   Spotify's played_at and the import's ts can mark the end or the start of a play, so both are allowed. */
+function lsSame(x, p) {
+  if (x.n !== p.n) return false;
+  const dt = Math.abs(x.ts - p.ts);
+  if (!!x.imp === !!p.imp) return dt < 3000;
+  const dur = Math.max(x.d || 0, p.d || 0);
+  return dt < 20000 || Math.abs(dt - dur) < 20000;
+}
+async function lsDedupe(say) {
+  say('Reading'); await lsMetaLoad(); S.lsFrom = '9999'; await lsLoad('0000');
+  let removed = 0; const changed = new Set();
+  for (const [day, ps] of S.lsDays) {
+    const keep = [];
+    for (const p of ps.slice().sort((a, b) => (b.imp ? 1 : 0) - (a.imp ? 1 : 0) || a.ts - b.ts)) { if (keep.some(x => lsSame(x, p))) { removed++; changed.add(day); } else keep.push(p); }
+    if (changed.has(day)) S.lsDays.set(day, keep.sort((a, b) => a.ts - b.ts));
+  }
+  if (changed.size) { say(`Saving ${fmtN(changed.size)} days`); await lsSaveDays(changed); }
+  say(removed ? `Removed ${fmtN(removed)} double counted play${removed === 1 ? '' : 's'}.` : 'No double counted plays found.');
+}
 function lsMerge(day, add) {
   const cur = S.lsDays.get(day) || [], out = cur.slice(); let n = 0;
   for (const p of add) {
-    if (out.some(x => x.n === p.n && Math.abs(x.ts - p.ts) < 120000)) continue;
+    if (out.some(x => lsSame(x, p))) continue;
     out.push(p); n++;
   }
   if (n) { out.sort((a, b) => a.ts - b.ts); S.lsDays.set(day, out); }
@@ -1296,7 +1316,7 @@ function lsAgg(ps) {
   ps.forEach(p => {
     ms += p.d || 0; dd = p.d || 0;
     const a0 = (p.a || [])[0] || '';
-    add(song, p.id || lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
+    add(song, lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
     if (p.b) add(alb, lsKey(p.b + '|' + a0), { n: p.b, s: a0, c0: p.c });
     (p.a || []).forEach(n => add(art, lsKey(n), { n, s: '' }));
     const gs = new Set(), ag = p.b ? lsAlbumGenres(lsKey(p.b + '|' + a0)) : null;
@@ -1355,7 +1375,8 @@ function lsSetup() {
   const gs = lsGenStats(), al = lsAlbList(); lsAlbumGenres(''); const alOwn = al.order.filter(k => libGen.has(k)).length, alMb = al.order.filter(k => S.lsAlbGen[k] && S.lsAlbGen[k][0] !== 'none').length, alLeft = al.order.filter(k => !libGen.has(k) && !S.lsAlbGen[k]).length, au = S.lsAuth || {}, ran = au.ranAt ? new Date(au.ranAt).toLocaleString('en-IE', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '';
   const genBox = `<div class="box"><b>Genres</b><div class="note">${fmtN(gs.withG)} of your ${fmtN(gs.total)} artists have a genre, ${fmtN(gs.done - gs.withG)} have none found. Spotify only gives genres for artists it has them for, so Musicbox falls back to MusicBrainz tags. That is about one artist a second, so keep this page open. It works through your most played artists first, up to ${fmtN(GEN_CAP)}.</div><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="ls-gen" data-n="300" ${gs.left ? '' : 'disabled'}>Look up 300 artists</button><button class="btn ghost small hide" id="gen-stop" data-act="gen-stop">Stop</button></div><div class="note" id="gen-prog">${esc(S.lsGenMsg || '')}</div>
     <div class="note" style="margin-top:10px">Albums: a play uses the album's own genres when it has them, otherwise the artist's. ${fmtN(alOwn)} of your played albums are in your vinyl collection and use its genres, and ${fmtN(alMb)} have MusicBrainz album tags.</div><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="ls-albgen" data-n="300" ${alLeft ? '' : 'disabled'}>Look up 300 albums</button></div></div>`;
-  return genBox + `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year, back to when your account began. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>
+  const dupBox = `<div class="box"><b>Double counted plays</b><div class="note">If a play was counted both by the Spotify import and by Sync, this removes the extra one and keeps the imported one. Run it once after importing.</div><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="ls-dedupe">Remove double counted plays</button></div><div class="note" id="dup-prog">${esc(S.lsDupMsg || '')}</div></div>`;
+  return genBox + dupBox + `<div class="box"><b>Import your Spotify history</b><div class="note">Spotify’s “Extended streaming history” export has every play with dates, which gives exact counts for any week, month or year, back to when your account began. Request it on spotify.com under Account, Privacy settings. When the email arrives, pick the Streaming_History_Audio files here. Importing twice is safe.</div><input type="file" id="lsfile" accept=".json,application/json" multiple><div id="lsimp" class="note">${esc(S.lsImp || '')}</div></div>
   <div class="box"><b>Collect plays in the background</b><div class="note">Spotify only shares your last 50 plays, so while the app is closed nothing is collected. A free scheduled job on GitHub can do it for you every 30 minutes. Turning this on saves your Spotify login token privately under your account so the job can use it. Turn it off any time.</div>
     <div class="row wrap" style="margin-top:8px">${au.enabled ? '<button class="btn ghost small" data-act="ls-bg-off">Turn off</button>' : '<button class="btn small" data-act="ls-bg-on">Turn on</button>'}</div>
     <div class="note">${au.enabled ? (ran ? 'Last collected ' + esc(ran) + (au.lastAdded != null ? ', ' + au.lastAdded + ' new' : '') + '.' : 'On. Waiting for the first run (set up the GitHub job first).') : 'Off.'}</div>${au.error ? `<div class="note err">${esc(au.error)}</div>` : ''}</div>
@@ -1839,7 +1860,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 34;
+const APP_VERSION = 35;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
@@ -2499,6 +2520,7 @@ function onClickInner(e) {
   else if (act === 'sync-now') syncNow();
   else if (act === 'ls-bg-on') lsBg(true);
   else if (act === 'gen-stop') S.stop = true;
+  else if (act === 'ls-dedupe') { b.disabled = true; lsDedupe(t => { S.lsDupMsg = t; if ($('#dup-prog')) $('#dup-prog').textContent = t; }).then(() => lsRender()); }
   else if (act === 'ls-albgen') { const st = $('#gen-stop'); if (st) st.classList.remove('hide'); b.disabled = true; lsAlbumRun(+b.dataset.n || 300, t => { S.lsGenMsg = t; if ($('#gen-prog')) $('#gen-prog').textContent = t; }).then(() => lsRender()); }
   else if (act === 'ls-gen') { const st = $('#gen-stop'); if (st) st.classList.remove('hide'); b.disabled = true; lsGenres(+b.dataset.n || 300, t => { S.lsGenMsg = t; if ($('#gen-prog')) $('#gen-prog').textContent = t; }).then(() => { if (S.tab === 'stats') lsRender(); }); }
   else if (act === 'ls-bg-off') lsBg(false);
