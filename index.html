@@ -89,6 +89,7 @@ nav.tabs{background-image:var(--grain,none)}
 nav.tabs button{border-top:2px solid transparent}nav.tabs button.on{border-top-color:var(--acc);box-shadow:inset 0 10px 12px -12px var(--acc)}
 .statgrid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}.stat{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);padding:10px}.stat b{display:block;font-size:22px;color:var(--acc);font-family:var(--head)}.stat span{font-size:12px;color:var(--dim)}
 @media(min-width:600px){.statgrid{grid-template-columns:repeat(3,1fr)}}
+html.solo nav.tabs [data-tab=wish],html.solo nav.tabs [data-tab=household],html.solo nav.tabs [data-tab=trophies],html.solo #tstrip,html.solo #bell,html.solo .bellbtn{display:none!important}
 .subtabs{display:flex;gap:2px;overflow-x:auto;border-bottom:1px solid var(--line);margin:10px 0 4px;-webkit-overflow-scrolling:touch;scrollbar-width:none}.subtabs::-webkit-scrollbar{display:none}.subtabs button{flex:none;background:none;border:0;border-bottom:2px solid transparent;color:var(--dim);padding:8px 10px;min-height:36px;font:inherit;font-size:14px;cursor:pointer}.subtabs button.on{color:var(--txt);border-bottom-color:var(--acc);font-weight:600}
 .chips{display:flex;gap:6px;margin-top:8px;overflow-x:auto}
 .chip{border:1px solid var(--line);background:transparent;border-radius:calc(var(--radius)*4);padding:6px 12px;font-size:14px;white-space:nowrap;box-shadow:var(--bevel)}
@@ -266,6 +267,7 @@ a.play{width:40px;height:40px;border-radius:50%;background:var(--green);color:#0
     <button data-tab="library" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3"/></svg>Library</button>
     <button data-tab="stats"><svg viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>Stats</button>
     <button data-tab="wish"><svg viewBox="0 0 24 24"><path d="M12 20s-7-4.5-7-10a4 4 0 0 1 7-2.5A4 4 0 0 1 19 10c0 5.5-7 10-7 10z"/></svg>Wishlist</button>
+    <button data-tab="profile"><svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.5"/><path d="M5 20c0-4 3.2-6.5 7-6.5s7 2.5 7 6.5"/></svg>Profile</button>
     <button data-tab="household"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6M17 5.5a2.5 2.5 0 0 1 0 5M18 14.5c2 .5 3.5 2.2 3.5 5"/></svg>Household</button>
     <button data-tab="trophies"><svg viewBox="0 0 24 24"><path d="M7 4h10v5a5 5 0 0 1-10 0V4zM7 6H4v2a3 3 0 0 0 3 3M17 6h3v2a3 3 0 0 1-3 3M12 14v4M8 20h8"/></svg>Trophies</button>
     <button data-tab="settings"><svg viewBox="0 0 24 24"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg>Settings</button>
@@ -293,6 +295,8 @@ const FIREBASE_CONFIG = {
 };
 const FB_VER = '10.14.1';
 const COLLECTION = 'vinyl';
+/* The two household accounts. Anyone else signs in to a private collection of their own. */
+const HOUSEHOLD_UIDS = ['YNOKHAbSVxUudg94P7O7UjI5rOJ3', 'vsTUyNLMKpfJh1flUDzvOGynBz23'];
 /* ==================================================================== */
 
 const $ = s => document.querySelector(s);
@@ -456,8 +460,8 @@ async function fbInit() {
   catch (e) { db = fsM.getFirestore(app); }
   fb = { auth, db, A: authM, F: fsM };
 }
-const col = () => fb.F.collection(fb.db, COLLECTION);
-const ref = id => fb.F.doc(fb.db, COLLECTION, id);
+const col = () => S.solo ? fb.F.collection(fb.db, 'users', S.user.uid, 'musicboxRecords') : fb.F.collection(fb.db, COLLECTION);
+const ref = id => S.solo ? fb.F.doc(fb.db, 'users', S.user.uid, 'musicboxRecords', id) : fb.F.doc(fb.db, COLLECTION, id);
 const metaRef = () => fb.F.doc(fb.db, 'vinylMeta', 'household');
 const pcol = () => fb.F.collection(fb.db, 'vinylMeta', 'household', 'people');
 const pref = id => fb.F.doc(fb.db, 'vinylMeta', 'household', 'people', id);
@@ -491,6 +495,11 @@ function startListening() {
     if (err && err.code === 'permission-denied') { $('#denied-uid').textContent = S.user.uid; show('denied'); }
     else { show('app'); toast('Could not load the collection'); }
   });
+  if (S.solo) {
+    S.peopleReady = true; S.wishReady = true; S.metaReady = true;
+    fb.F.getDoc(LSM('profile')).then(d => { const m = d.exists() ? d.data() : {}; S.people = [{ id: S.user.uid, ...m }]; refreshHello(); if (m.theme && m.theme !== S.theme) applyTheme(m.theme); if (VIEW_IDS.includes(m.view) && m.view !== S.view) { S.view = m.view; lset('musicbox_view', S.view); if (S.tab === 'library' && S.started) renderLibrary(); } }).catch(() => {});
+    return;
+  }
   unsubP = fb.F.onSnapshot(pcol(), snap => {
     S.people = snap.docs.map(d => ({ id: d.id, ...d.data() })); S.peopleReady = true; S.peopleFail = false;
     ensureMe(); checkTrophies(); fillStrip(); if (S.tab === 'wish') refreshWish();
@@ -534,8 +543,22 @@ function openRecord(id, pre) {
   S.draft = r ? { ...r } : { artist: '', title: '', copies: 1, ...(pre || {}) };
   S.results = [];
   const d = S.draft;
+  const findHTML = `    <div class="sec">
+      <b>Discogs</b>
+      <label class="note" style="display:flex;gap:8px;align-items:center;margin:6px 0 0"><input type="checkbox" id="dc-vinyl" checked style="width:auto;min-height:0"> Vinyl only</label>
+      <div class="row" style="margin-top:10px"><input id="dc-q" placeholder="${dTok() ? 'Search Discogs' : 'Add a Discogs token in Settings > Advanced to search'}" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="dc-search">Search</button></div>
+      <div id="dc-res"></div>
+    </div>
+    <div class="sec">
+      <b>Spotify album</b>
+      <div id="sp-cur">${spCurrentHTML()}</div>
+      <div class="row" style="margin-top:10px"><input id="sp-q" placeholder="Search Spotify" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="sp-search">Search</button></div>
+      <div id="sp-res"></div>
+    </div>
+`;
   openSheet(`
     <div class="row"><h3 class="grow">${r ? 'Edit record' : 'Add a record'}</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
+    ${r ? '' : '<div class="row wrap" style="margin:4px 0 6px"><button class="btn small" data-act="scan">Scan barcode</button><span class="note">or search below, then check the details</span></div>' + findHTML}
     ${r && r.addedBy ? `<div class="note">Added by ${esc(adderName(r))}${r.addedAt ? ' on ' + esc(fmtDate(r.addedAt)) : ''}</div>` : ''}
     ${fieldHTML('artist', 'Artist', d.artist)}
     ${fieldHTML('title', 'Title', d.title)}
@@ -557,17 +580,7 @@ function openRecord(id, pre) {
         <div class="grow"><label class="btn small" style="display:inline-flex;cursor:pointer">Photo or file<input id="cov-file" type="file" accept="image/*" hidden></label> <button class="btn ghost small" data-act="cov-clear">Remove</button>
         <div class="note">A Spotify or Discogs match adds the cover by itself. Use a photo of the sleeve when there is none.</div></div></div>
     </div>
-    <div class="sec">
-      <b>Discogs</b>
-      <div class="row" style="margin-top:10px"><input id="dc-q" placeholder="${dTok() ? 'Search Discogs' : 'Add a Discogs token in Settings to search'}" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="dc-search">Search</button></div>
-      <div id="dc-res"></div>
-    </div>
-    <div class="sec">
-      <b>Spotify album</b>
-      <div id="sp-cur">${spCurrentHTML()}</div>
-      <div class="row" style="margin-top:10px"><input id="sp-q" placeholder="Search Spotify" value="${esc((d.artist + ' ' + d.title).trim())}"><button class="btn small" data-act="sp-search">Search</button></div>
-      <div id="sp-res"></div>
-    </div>
+    ${r ? findHTML : ''}
     <div class="row" style="margin-top:18px">
       <button class="btn grow" data-act="save">Save</button>
       ${r ? '<button class="btn red" data-act="delete">Delete</button>' : ''}
@@ -1576,6 +1589,7 @@ const trWhy = (t, lvl) => t.u ? `You reached ${fmtN(t.t[lvl - 1])} ${t.u}.` : t.
 
 let awarding = false;
 function checkTrophies() {
+  if (S.solo) return;
   if (!S.user || !S.recsReady || !S.peopleReady || !(S.metaReady || S.metaFail) || awarding) return;
   let doc = S.people.find(p => p.id === S.user.uid);
   const st = trophyState(), best = (doc && doc.best) || {};
@@ -1860,7 +1874,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 35;
+const APP_VERSION = 37;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
@@ -1871,7 +1885,7 @@ async function syncNow() {
   const b = $('#syncnow'); if (b) { b.disabled = true; b.textContent = 'Syncing'; }
   try {
     await Promise.race([fb.F.waitForPendingWrites(fb.db), new Promise((_, no) => setTimeout(() => no(new Error('offline')), 8000))]);
-    await Promise.all([fb.F.getDocsFromServer(col()), fb.F.getDocsFromServer(wcol()), fb.F.getDocsFromServer(pcol())]);
+    await Promise.all(S.solo ? [fb.F.getDocsFromServer(col())] : [fb.F.getDocsFromServer(col()), fb.F.getDocsFromServer(wcol()), fb.F.getDocsFromServer(pcol())]);
     S.offline = false; S.lastSync = Date.now(); toast('Up to date');
   } catch (e) { S.offline = true; toast('Offline. Changes will upload when you are back online'); }
   if ($('#syncnow')) { $('#syncnow').disabled = false; $('#syncnow').textContent = 'Sync now'; }
@@ -1920,7 +1934,7 @@ function renderSettings() {
 }
 
 /* ---------- tabs ---------- */
-function renderTab() { ({ library: renderLibrary, stats: renderStats, wish: renderWish, household: renderHousehold, trophies: renderTrophies, settings: renderSettings })[S.tab](); }
+function renderTab() { ({ library: renderLibrary, stats: renderStats, wish: renderWish, profile: renderProfile, household: renderHousehold, trophies: renderTrophies, settings: renderSettings })[S.tab](); }
 function setTab(t) {
   S.tab = t; document.documentElement.dataset.tab = t;
   document.querySelectorAll('nav.tabs button').forEach(b => b.classList.toggle('on', b.dataset.tab === t));
@@ -2070,14 +2084,25 @@ async function autoSpotify(d) {
 let dcResults = [];
 async function discogsSearch() {
   const box = $('#dc-res'), q = (($('#dc-q') || {}).value || '').trim(); if (!q || !box) return;
-  if (!dTok()) { box.innerHTML = '<div class="note err">Add a Discogs token in Settings first.</div>'; return; }
+  if (!dTok()) { box.innerHTML = '<div class="note err">Add a Discogs token in Settings > Advanced first.</div>'; return; }
   box.innerHTML = '<div class="note">Searching</div>';
+  const vinyl = !$('#dc-vinyl') || $('#dc-vinyl').checked, d = S.draft || {};
+  const base = { type: 'release', per_page: '12', token: dTok(), ...(vinyl ? { format: 'Vinyl' } : {}) };
+  const tries = [];
+  if (/^\d{8,14}$/.test(q.replace(/[\s-]/g, ''))) tries.push({ ...base, barcode: q.replace(/[\s-]/g, '') });
+  else {
+    const same = (d.artist || d.title) && q.toLowerCase() === (d.artist + ' ' + d.title).trim().toLowerCase();
+    if (same && d.artist && d.title) tries.push({ ...base, artist: d.artist, release_title: d.title });
+    tries.push({ ...base, q });
+    if (vinyl) { const { format, ...nb } = base; tries.push({ ...nb, q }); }
+  }
   try {
-    const j = await getJSON('https://api.discogs.com/database/search?' + new URLSearchParams({ q, type: 'release', per_page: '10', token: dTok() }));
-    dcResults = j.results || [];
-    if (!dcResults.length) { box.innerHTML = '<div class="note">Nothing found. Try fewer words.</div>'; return; }
+    let res = [];
+    for (const t of tries) { const j = await getJSON('https://api.discogs.com/database/search?' + new URLSearchParams(t)); res = j.results || []; if (res.length) break; }
+    dcResults = res;
+    if (!dcResults.length) { box.innerHTML = '<div class="note">Nothing found. Try the artist and title only, or untick Vinyl only.</div>'; return; }
     box.innerHTML = dcResults.map((x, i) => `<button class="res" data-dpick="${i}"><div class="meta"><b>${esc(x.title)}</b><span>${esc([x.year, x.country].filter(Boolean).join(' · '))}</span><span>${esc([(x.label || [])[0], x.catno, (x.format || []).join(', ')].filter(Boolean).join(' · '))}</span></div></button>`).join('');
-  } catch (e) { box.innerHTML = `<div class="note err">${e.message === 'HTTP401' ? 'Discogs rejected the token. Check it in Settings.' : 'Discogs search failed. Try again.'}</div>`; }
+  } catch (e) { box.innerHTML = `<div class="note err">${e.message === 'HTTP401' ? 'Discogs rejected the token. Check it in Settings > Advanced.' : 'Discogs search failed. Try again.'}</div>`; }
 }
 async function discogsPick(i) {
   const x = dcResults[i]; if (!x || !S.draft) return;
@@ -2337,6 +2362,7 @@ async function wishDel() {
    Household. Everyone in it, with their favourites and theme.
    ==================================================================== */
 function ensureMe() {
+  if (S.solo) return;
   if (!S.user || S.meDone || !S.peopleReady) return; S.meDone = true;
   const m = me();
   const want = { uid: S.user.uid, name: S.user.displayName || (S.user.email || '').split('@')[0], email: emailOf(), photo: S.user.photoURL || '', lastSeen: Date.now() };
@@ -2345,6 +2371,7 @@ function ensureMe() {
   try { fb.F.setDoc(pref(S.user.uid), want, { merge: true }).catch(() => {}); } catch (e) {}
 }
 function saveMine(patch) {
+  if (S.solo) { let d = S.people.find(p => p.id === S.user.uid); if (!d) { d = { id: S.user.uid }; S.people.push(d); } Object.assign(d, patch); try { fb.F.setDoc(LSM('profile'), patch, { merge: true }).catch(() => {}); } catch (e) {} return; }
   let d = S.people.find(p => p.id === S.user.uid); if (!d) { d = { id: S.user.uid }; S.people.push(d); }
   Object.assign(d, patch);
   try { fb.F.setDoc(pref(S.user.uid), patch, { merge: true }).catch(() => toast('Could not save. Publish the latest Firestore rules.')); } catch (e) {}
@@ -2371,7 +2398,6 @@ function renderHousehold() {
       <h4>Favourite vinyls</h4>
       ${fv.length ? `<div class="favrow">${fv.map(r => `<div class="favv" data-open="${esc(r.id)}">${r.cover ? `<img class="cov" style="width:72px;height:72px" referrerpolicy="no-referrer" src="${esc(r.cover)}" alt="" onerror="this.style.visibility='hidden'">` : '<div class="cov" style="width:72px;height:72px"></div>'}<div class="note">${esc(r.title)}</div></div>`).join('')}</div>` : '<div class="note">None picked yet.</div>'}
       ${!mine ? (() => { const n = wishOf(p.id).length, t = new Set(mineWish().map(r => wk(r.artist, r.title))), m = wishOf(p.id).filter(r => t.has(wk(r.artist, r.title))).length; return `<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="their-wish" data-uid="${esc(p.id)}">Wishlist · ${n}</button>${m ? `<span class="tag ok">${m} match${m === 1 ? '' : 'es'}!</span>` : ''}</div>`; })() : ''}
-      ${mine ? '<div class="row wrap" style="margin-top:12px"><button class="btn small" data-act="profile">Profile</button></div>' : ''}
     </div>`;
   }).join('');
   $('#main').innerHTML = (S.peopleFail ? '<p class="note err">The household could not be loaded. Publish the latest Firestore rules.</p>' : '') + cards + '<p class="note">People appear here after they sign in to Musicbox once.</p>';
@@ -2406,15 +2432,14 @@ function toggleFavVinyl(id) {
   saveMine({ favVinyls: cur });
   const l = $('#fv-list'); if (l) l.innerHTML = favVinylList((($('#fv-q') || {}).value) || '');
 }
-function openProfile() {
-  const p = me() || {};
-  openSheet(`<div class="row"><h3 class="grow">Profile</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
-    <label>Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">
-    <h4>Favourites</h4>
-    <div class="row wrap"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button></div>
-    <h4>Theme</h4>
-    <div id="theme-grid">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand. Your nickname and theme follow you across devices.</div>
-    <button class="btn" data-act="close" style="margin-top:14px;width:100%">Done</button>`);
+function renderProfile() {
+  const p = me(), name = personName({ ...p, name: p.name || (S.user && S.user.displayName) || '', email: (S.user && S.user.email) || '' });
+  $('#main').innerHTML = `
+    <div class="box"><div class="row" style="align-items:center;gap:12px">${avatarHTML({ photo: S.user.photoURL || '', name })}<div class="grow"><b>${esc(name)}</b><div class="note">${esc(S.user.email || '')}</div></div></div>
+      <label style="margin-top:12px">Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">
+      <div class="note">Your nickname and theme follow you across devices.</div></div>
+    ${S.solo ? '' : `<div class="box"><b>Favourites</b><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button></div></div>`}
+    <div class="box"><b>Theme</b><div id="theme-grid" style="margin-top:10px">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand.</div></div>`;
 }
 function openThemes() {
   openSheet(`<div class="row"><h3 class="grow">Theme</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
@@ -2535,7 +2560,7 @@ function onClickInner(e) {
   else if (act === 'ls-import') { const f = $('#lsfile'); if (f) f.click(); }
   else if (act === 'cover-stop') S.stop = true;
   else if (act === 'themes') openThemes();
-  else if (act === 'profile') openProfile();
+  else if (act === 'profile') setTab('profile');
   else if (act === 'cov-clear') { if (S.draft) { S.draft.cover = ''; updateCoverPrev(); } }
   else if (act === 'wish-search') wishSearch();
   else if (act === 'wd-back') { if (S.wd && S.wd.list) { S.wd = { phase: 'cands', list: S.wd.list, errs: [] }; } else S.wd = null; refreshWish(); }
@@ -2569,7 +2594,7 @@ document.addEventListener('change', e => {
   if (t.id === 'lsfile') { lsImportFiles([...t.files]); t.value = ''; return; }
   if (t.id === 'sort') { S.sort = t.value; lset('musicbox_sort', S.sort); S.page = 0; renderLibraryList(); }
   else if (t.dataset && t.dataset.fl) { S.f[t.dataset.fl] = t.value; S.page = 0; $('#chips').innerHTML = chipsHTML(); $('#fpanel').innerHTML = fpanelHTML(); renderLibraryList(); }
-  else if (t.id === 'nick') { saveMine({ nick: t.value.trim().slice(0, 20) }); toast('Saved'); }
+  else if (t.id === 'nick') { saveMine({ nick: t.value.trim().slice(0, 20) }); refreshHello(); toast('Saved'); }
   else if (t.id === 'csv' && t.files[0]) importCSV(t.files[0]);
   else if (t.id === 'cov-file' && t.files[0]) { photoToCover(t.files[0]).then(u => { if (S.draft) { S.draft.cover = u; updateCoverPrev(); toast('Cover added. Save to keep it.'); } }).catch(() => toast('Could not read that picture')); }
   else if (t.matches && t.matches('[data-pp]')) { S.pp = +t.value || 50; lset('musicbox_pp', String(S.pp)); S.page = 0; if (S.tab === 'library') renderLibraryList(); }
@@ -2604,7 +2629,7 @@ $('#btn-signin').addEventListener('click', async () => {
   await spHandleRedirect();
   try { await fbInit(); } catch (e) { $('#loading').innerHTML = '<h1>Musicbox</h1><p>Could not load. Check your connection and reload.</p>'; return; }
   fb.A.onAuthStateChanged(fb.auth, u => {
-    S.user = u;
+    S.user = u; S.solo = !!u && !HOUSEHOLD_UIDS.includes(u.uid); document.documentElement.classList.toggle('solo', !!S.solo);
     if (!u) { stopListening(); S.recs = []; show('login'); return; }
     show('loading'); startListening();
     if (S.pendingToast) { const m = S.pendingToast; S.pendingToast = ''; setTimeout(() => toast(m), 900); }
