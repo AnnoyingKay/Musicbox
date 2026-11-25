@@ -80,10 +80,11 @@ nav.tabs svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1
 .seg.views button{padding:6px 9px;display:inline-flex;align-items:center;justify-content:center}
 .fpanel{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}.fpanel select{min-height:38px;padding:6px 8px;width:100%}.fpanel label{font-size:12px;color:var(--dim);display:block;margin-bottom:2px}.ann{background:var(--card);border:1px solid var(--acc);border-radius:var(--radius);padding:12px;margin-top:12px;box-shadow:var(--bevel)}.ann p{margin:4px 0;font-size:14px}
 .adv summary{cursor:pointer;list-style:none;padding:2px 0}.adv summary::-webkit-details-marker{display:none}.adv summary b::after{content:' ▾';color:var(--dim)}.adv[open] summary b::after{content:' ▴'}.advin{margin-top:14px;padding-top:12px;border-top:1px solid var(--line)}
-body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-image:var(--lay-img,none);background-size:var(--lay-size,auto);background-position:0 0,0 0,0 0,right -240px top 28vh;background-repeat:no-repeat,no-repeat,repeat,no-repeat}
+body::before{content:"";position:fixed;inset:0;z-index:0;pointer-events:none;background-image:var(--lay-img,none);background-size:var(--lay-size,auto);background-position:0 0,0 0,0 0,0 0,0 0,left -50px bottom 70px,right -240px top 28vh;background-repeat:no-repeat,no-repeat,no-repeat,repeat,repeat,no-repeat,no-repeat}
 main{position:relative;z-index:1}
-header.top{background-image:var(--hdr,none),linear-gradient(90deg,transparent,var(--acc),transparent);background-repeat:no-repeat;background-position:right 40px top 0,0 calc(100% - 3px);background-size:180px 80px,100% 1px;box-shadow:0 8px 14px -12px var(--acc)}
-.box,.res,.tcell,.ann,#lst.list .item{background-image:var(--grain,none)}
+header.top{background-image:var(--hdr,none),linear-gradient(90deg,transparent,var(--acc),transparent),repeating-linear-gradient(90deg,var(--acc) 0 5px,transparent 5px 11px);background-repeat:no-repeat;background-position:right 40px top 0,0 calc(100% - 3px),0 calc(100% - 7px);background-size:180px 80px,100% 1px,100% 1px;box-shadow:0 8px 14px -12px var(--acc)}
+.res,.tcell,.ann,#lst.list .item{background-image:var(--grain,none)}
+.box{background-image:var(--grain,none),linear-gradient(90deg,var(--acc),transparent 55%);background-size:120px 120px,100% 3px;background-repeat:repeat,no-repeat;background-position:0 0,0 0}
 .tile .tc,.item .cov{box-shadow:0 2px 6px #0004}
 nav.tabs{background-image:var(--grain,none)}
 nav.tabs button{border-top:2px solid transparent}nav.tabs button.on{border-top-color:var(--acc);box-shadow:inset 0 10px 12px -12px var(--acc)}
@@ -306,7 +307,7 @@ const ls = (k, d) => { try { const v = localStorage.getItem(k); return v == null
 const lset = (k, v) => { try { localStorage.setItem(k, v); } catch (e) {} };
 const S = {
   user: null, recs: [], meta: null, recsReady: false, metaReady: false, started: false,
-  tab: 'library', q: '', filter: 'all', f: {}, fo: false, sort: ls('musicbox_sort', 'artist'), view: ls('musicbox_view', 'list'), pp: +ls('musicbox_pp', '50') || 50, page: 0,
+  tab: 'library', q: '', filter: 'all', f: {}, fo: false, sort: ls('musicbox_sort', 'artist'), view: ls('musicbox_view', 'list'), orig: ls('musicbox_orig', '') === '1', pp: +ls('musicbox_pp', '50') || 50, page: 0,
   draft: null, results: [], matching: false, stop: false, dq: null,
   people: [], peopleReady: false, meDone: false, wish: [], wishReady: false, wq: '', wd: null, fromWish: null, wsel: null
 };
@@ -497,7 +498,7 @@ function startListening() {
   });
   if (S.solo) {
     S.peopleReady = true; S.wishReady = true; S.metaReady = true;
-    fb.F.getDoc(LSM('profile')).then(d => { const m = d.exists() ? d.data() : {}; S.people = [{ id: S.user.uid, ...m }]; refreshHello(); if (m.theme && m.theme !== S.theme) applyTheme(m.theme); if (VIEW_IDS.includes(m.view) && m.view !== S.view) { S.view = m.view; lset('musicbox_view', S.view); if (S.tab === 'library' && S.started) renderLibrary(); } }).catch(() => {});
+    fb.F.getDoc(LSM('profile')).then(d => { const m = d.exists() ? d.data() : {}; S.people = [{ id: S.user.uid, ...m }]; refreshHello(); if (typeof m.orig === 'boolean' && m.orig !== S.orig) { S.orig = m.orig; lset('musicbox_orig', S.orig ? '1' : ''); applyTheme(m.theme || S.theme); } if (m.theme && m.theme !== S.theme) applyTheme(m.theme); if (VIEW_IDS.includes(m.view) && m.view !== S.view) { S.view = m.view; lset('musicbox_view', S.view); if (S.tab === 'library' && S.started) renderLibrary(); } }).catch(() => {});
     return;
   }
   unsubP = fb.F.onSnapshot(pcol(), snap => {
@@ -964,22 +965,46 @@ const PAT = {
   Objects: [44, c => `<path d='M4 8l9 2M24 4l6 5M10 30l8-3M30 36l9 1M36 20l-5 7' stroke='${c.x}' stroke-width='.8' stroke-linecap='round'/>`]
 };
 const PATOP = { Formats: .05, Genres: .09, Bands: .10, Decades: .07, Festive: .16, Places: .09, Moods: .05, Objects: .07 };
+const HATCH = [
+  [10, c => `<path d='M0 10L10 0M-2 2L2 -2M8 12L12 8' stroke='${c.x}' stroke-width='.8'/>`],
+  [10, c => `<path d='M0 10L10 0M0 0L10 10' stroke='${c.x}' stroke-width='.6'/>`],
+  [16, c => `<circle cx='8' cy='8' r='1' fill='${c.x}'/>`],
+  [7, c => `<path d='M0 3.5H7' stroke='${c.x}' stroke-width='.6'/>`],
+  [18, c => `<rect x='0' y='0' width='2' height='18' fill='${c.x}'/>`],
+  [30, c => `<path d='M15 11v8M11 15h8' stroke='${c.x}' stroke-width='1' stroke-linecap='round'/>`],
+  [40, c => `<path d='M0 8Q10 0 20 8T40 8M0 28Q10 20 20 28T40 28' fill='none' stroke='${c.x}' stroke-width='.8'/>`],
+  [26, c => `<path d='M13 2L24 13L13 24L2 13Z' fill='none' stroke='${c.x}' stroke-width='.8'/>`]
+];
+const hashId = id => [...String(id)].reduce((a, ch) => (a * 31 + ch.charCodeAt(0)) >>> 0, 7);
 function applyDetail(t, v, c) {
   const st = document.documentElement.style, light = !!v.light, g = t.g || 'Formats', p = PAT[g] || PAT.Formats;
   const vig = light ? 'rgba(0,0,0,.10)' : 'rgba(0,0,0,.38)';
   const glow = `radial-gradient(ellipse 80% 40% at 50% 0%,${c.a}${light ? '1c' : '26'},transparent 70%)`;
   const disc = sv(640, 640, `<g opacity='${light ? .16 : .13}'>${GROOVE(c)}</g>`);
   const pat = sv(p[0], p[0], `<g opacity='${PATOP[g] * (light ? 1.3 : 1)}'>${p[1](c)}</g>`);
-  st.setProperty('--lay-img', `${glow},radial-gradient(ellipse at 50% 40%,transparent 55%,${vig}),${pat},${disc}`);
-  st.setProperty('--lay-size', `100% 100%,100% 100%,${p[0]}px ${p[0]}px,640px 640px`);
+  const h = HATCH[hashId(t.id) % HATCH.length], hat = sv(h[0], h[0], `<g opacity='${light ? .07 : .06}'>${h[1](c)}</g>`);
+  const art = ART[t.id] || ART.record || {}, big = art.cov ? sv(56, 56, `<g opacity='${light ? .22 : .16}'>${art.cov(c)}</g>`) : 'none';
+  const glow2 = `radial-gradient(ellipse 70% 35% at 0% 100%,${c.a}${light ? '18' : '1a'},transparent 70%)`;
+  st.setProperty('--lay-img', `${glow},${glow2},radial-gradient(ellipse at 50% 40%,transparent 55%,${vig}),${pat},${hat},${big},${disc}`);
+  st.setProperty('--lay-size', `100% 100%,100% 100%,100% 100%,${p[0]}px ${p[0]}px,${h[0]}px ${h[0]}px,230px 230px,640px 640px`);
   const n = light ? 0 : 1;
-  st.setProperty('--grain', sv(120, 120, `<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 ${light ? .07 : .11} 0'/></filter><rect width='120' height='120' filter='url(#n)'/>`));
+  st.setProperty('--grain', sv(120, 120, `<filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 0 ${n} 0 0 0 ${light ? .035 : .11} 0'/></filter><rect width='120' height='120' filter='url(#n)'/>`));
   const arcs = Array.from({ length: 9 }, (_, i) => `<circle cx='170' cy='40' r='${22 + i * 11}' fill='none' stroke='${c.a}' stroke-width='.8' opacity='${.28 - i * .02}'/>`).join('');
   st.setProperty('--hdr', sv(180, 80, arcs));
 }
+const hx = h => { h = String(h).replace('#', ''); if (h.length === 3) h = [...h].map(x => x + x).join(''); return [0, 2, 4].map(i => parseInt(h.slice(i, i + 2), 16)); };
+const mixc = (a, b, k) => '#' + hx(a).map((v, i) => Math.round(v * (1 - k) + hx(b)[i] * k).toString(16).padStart(2, '0')).join('');
+const lumc = h => { const [r, g, b] = hx(h); return (0.299 * r + 0.587 * g + 0.114 * b) / 255; };
+/* Most themes use a light version of their own colours. These few stay dark because the idea needs it. */
+const KEEP_DARK = new Set(['heavymetal', 'blackmetal', 'halloween', 'nightdrive', 'newyear', 'arcade']);
+function liteOf(v) {
+  const acc = lumc(v.acc) > .5 ? mixc(v.acc, '#000000', .38) : v.acc, txt = mixc('#14121a', v.bg, .25), tint = mixc(v.bg, acc, .55);
+  return { ...v, light: true, img: 'none', bg: mixc('#ffffff', tint, .13), card: mixc('#ffffff', tint, .02), line: mixc('#ffffff', tint, .3), txt, dim: mixc(txt, '#ffffff', .5), acc, on: lumc(acc) > .6 ? '#111111' : '#ffffff' };
+}
 function applyTheme(id) {
   const t = THEMES.find(x => x.id === id) || THEMES[0];
-  const v = { ...BASE, ...t };
+  let v = { ...BASE, ...t };
+  if (!S.orig && !v.light && !KEEP_DARK.has(t.id)) v = liteOf(v);
   const st = document.documentElement.style;
   const map = { bg: '--bg', card: '--card', line: '--line', txt: '--txt', dim: '--dim', acc: '--acc', on: '--on', font: '--font', head: '--head', r: '--radius', cr: '--cover-r', tt: '--tt', ls: '--ls', bevel: '--bevel', hw: '--hw' };
   for (const k in map) st.setProperty(map[k], v[k]);
@@ -1008,7 +1033,7 @@ function refreshHello() {
 function savedTheme() { try { return localStorage.getItem('musicbox_theme') || 'record'; } catch (e) { return 'record'; } }
 function themeGridHTML() {
   return ['Formats', 'Genres', 'Bands', 'Festive', 'Decades', 'Places', 'Moods', 'Objects'].map(g => `<div class="note" style="margin-top:12px">${g}</div><div class="tgrid">` +
-    THEMES.filter(t => t.g === g).map(t => `<button class="theme ${S.theme === t.id ? 'on' : ''}" data-theme-id="${t.id}"><span class="sw" style="background:${t.bg}"><i style="background:${t.acc}"></i></span>${esc(t.n)}</button>`).join('') + '</div>').join('');
+    THEMES.filter(t => t.g === g).map(t => `<button class="theme ${S.theme === t.id ? 'on' : ''}" data-theme-id="${t.id}"><span class="sw" style="background:${!S.orig && !t.light && !KEEP_DARK.has(t.id) ? liteOf({ ...BASE, ...t }).bg : t.bg}"><i style="background:${!S.orig && !t.light && !KEEP_DARK.has(t.id) ? liteOf({ ...BASE, ...t }).acc : t.acc}"></i></span>${esc(t.n)}</button>`).join('') + '</div>').join('');
 }
 
 
@@ -1874,7 +1899,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 37;
+const APP_VERSION = 39;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
@@ -2366,6 +2391,7 @@ function ensureMe() {
   if (!S.user || S.meDone || !S.peopleReady) return; S.meDone = true;
   const m = me();
   const want = { uid: S.user.uid, name: S.user.displayName || (S.user.email || '').split('@')[0], email: emailOf(), photo: S.user.photoURL || '', lastSeen: Date.now() };
+  if (typeof m.orig === 'boolean' && m.orig !== S.orig) { S.orig = m.orig; lset('musicbox_orig', S.orig ? '1' : ''); applyTheme(m.theme || S.theme); }
   if (!m.theme) want.theme = S.theme; else if (m.theme !== S.theme) applyTheme(m.theme);
   if (!m.view) want.view = S.view; else if (VIEW_IDS.includes(m.view) && m.view !== S.view) { S.view = m.view; lset('musicbox_view', S.view); if (S.tab === 'library' && S.started) renderLibrary(); }
   try { fb.F.setDoc(pref(S.user.uid), want, { merge: true }).catch(() => {}); } catch (e) {}
@@ -2439,7 +2465,7 @@ function renderProfile() {
       <label style="margin-top:12px">Nickname</label><input id="nick" maxlength="20" placeholder="Optional, up to 20 characters" value="${esc(p.nick || '')}" autocomplete="off">
       <div class="note">Your nickname and theme follow you across devices.</div></div>
     ${S.solo ? '' : `<div class="box"><b>Favourites</b><div class="row wrap" style="margin-top:8px"><button class="btn small" data-act="fav-trophies">Choose trophies</button><button class="btn small" data-act="fav-vinyls">Choose vinyls</button></div></div>`}
-    <div class="box"><b>Theme</b><div id="theme-grid" style="margin-top:10px">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand.</div></div>`;
+    <div class="box"><b>Theme</b><label class="note" style="display:flex;gap:8px;align-items:center;margin:8px 0 0"><input type="checkbox" id="orig" ${S.orig ? 'checked' : ''} style="width:auto;min-height:0"> Use the original dark colours</label><div id="theme-grid" style="margin-top:10px">${themeGridHTML()}</div><div class="note" style="margin-top:10px">Original colour schemes, not affiliated with any band or brand.</div></div>`;
 }
 function openThemes() {
   openSheet(`<div class="row"><h3 class="grow">Theme</h3><button class="icon" data-act="close" aria-label="Close">&times;</button></div>
@@ -2594,6 +2620,7 @@ document.addEventListener('change', e => {
   if (t.id === 'lsfile') { lsImportFiles([...t.files]); t.value = ''; return; }
   if (t.id === 'sort') { S.sort = t.value; lset('musicbox_sort', S.sort); S.page = 0; renderLibraryList(); }
   else if (t.dataset && t.dataset.fl) { S.f[t.dataset.fl] = t.value; S.page = 0; $('#chips').innerHTML = chipsHTML(); $('#fpanel').innerHTML = fpanelHTML(); renderLibraryList(); }
+  else if (t.id === 'orig') { S.orig = t.checked; lset('musicbox_orig', S.orig ? '1' : ''); saveMine({ orig: S.orig }); applyTheme(S.theme); const g = $('#theme-grid'); if (g) g.innerHTML = themeGridHTML(); }
   else if (t.id === 'nick') { saveMine({ nick: t.value.trim().slice(0, 20) }); refreshHello(); toast('Saved'); }
   else if (t.id === 'csv' && t.files[0]) importCSV(t.files[0]);
   else if (t.id === 'cov-file' && t.files[0]) { photoToCover(t.files[0]).then(u => { if (S.draft) { S.draft.cover = u; updateCoverPrev(); toast('Cover added. Save to keep it.'); } }).catch(() => toast('Could not read that picture')); }
