@@ -1285,7 +1285,7 @@ async function mbAlbumGenres(album, artist) {
 }
 function lsAlbList() {
   const cnt = new Map(), nm = new Map();
-  for (const ps of S.lsDays.values()) for (const p of ps) if (p.b) { const a0 = (p.a || [])[0] || '', k = lsKey(p.b + '|' + a0); cnt.set(k, (cnt.get(k) || 0) + 1); if (!nm.has(k)) nm.set(k, [p.b, a0]); }
+  for (const ps of S.lsDays.values()) for (const p of ps) if (p.b) { const a0 = (p.a || [])[0] || '', k = albKey(p.b, a0); cnt.set(k, (cnt.get(k) || 0) + 1); if (!nm.has(k)) nm.set(k, [albBase(p.b), a0]); }
   return { order: [...cnt.entries()].sort((a, b) => b[1] - a[1]).slice(0, GEN_CAP).map(x => x[0]), nm, total: cnt.size };
 }
 async function lsAlbumRun(limit, say) {
@@ -1343,8 +1343,13 @@ function lsPlays(per) {
 }
 /* Album genres: your own records first, then MusicBrainz album tags, else the artist's genres */
 let libGenKey = -1, libGen = new Map();
+/* Editions of one album count together: Deluxe, Complete Works, Remastered, Expanded and so on */
+const ED = 'deluxe|complete|remaster(?:ed)?|edition|expanded|anniversary|bonus|extended|special|collector|reissue|super|platinum|explicit|mono|stereo';
+const EDRE = new RegExp('\\s*[\\(\\[][^\\)\\]]*\\b(?:' + ED + ')\\b[^\\)\\]]*[\\)\\]]|\\s+-\\s+[^-]*\\b(?:' + ED + ')\\b.*$', 'ig');
+const albBase = t => { const b = String(t || '').replace(EDRE, '').trim(); return b || String(t || ''); };
+const albKey = (t, a) => lsKey(albBase(t) + '|' + a);
 function lsAlbumGenres(k) {
-  if (libGenKey !== S.recs.length) { libGenKey = S.recs.length; libGen = new Map(); S.recs.forEach(r => { const g = splitL(r.genres).map(x => x.toLowerCase()); if (g.length && r.title) libGen.set(lsKey(r.title + '|' + r.artist), g); }); }
+  if (libGenKey !== S.recs.length) { libGenKey = S.recs.length; libGen = new Map(); S.recs.forEach(r => { const g = splitL(r.genres).map(x => x.toLowerCase()); if (g.length && r.title) libGen.set(albKey(r.title, r.artist), g); }); }
   const a = libGen.get(k); if (a) return a;
   const b = S.lsAlbGen[k]; return b && b[0] !== 'none' ? b : null;
 }
@@ -1355,9 +1360,9 @@ function lsAgg(ps) {
     ms += p.d || 0; dd = p.d || 0;
     const a0 = (p.a || [])[0] || '';
     add(song, lsKey(p.n + '|' + a0), { n: p.n, s: (p.a || []).join(', '), c0: p.c });
-    if (p.b) add(alb, lsKey(p.b + '|' + a0), { n: p.b, s: a0, c0: p.c });
+    if (p.b) add(alb, albKey(p.b, a0), { n: albBase(p.b), s: a0, c0: p.c });
     (p.a || []).forEach(n => add(art, lsKey(n), { n, s: '' }));
-    const gs = new Set(), ag = p.b ? lsAlbumGenres(lsKey(p.b + '|' + a0)) : null;
+    const gs = new Set(), ag = p.b ? lsAlbumGenres(albKey(p.b, a0)) : null;
     if (ag) ag.forEach(g => gs.add(g)); else (p.a || []).forEach(n => (S.lsGen[lsKey(n)] || []).forEach(g => { if (g !== 'unknown' && g !== 'none') gs.add(g); }));
     gs.forEach(g => add(gen, g, { n: g, s: '' }));
   });
@@ -1899,7 +1904,7 @@ function renderTrophies() {
 }
 
 /* ---------- settings ---------- */
-const APP_VERSION = 39;
+const APP_VERSION = 40;
 function syncLineText() {
   if (!navigator.onLine || S.offline) return 'Offline. Changes will upload when you are back online';
   if (!S.lastSync) return 'Checking';
